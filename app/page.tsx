@@ -32,7 +32,7 @@ export default function Home() {
           <BrandSeal className="nav-seal" />
           <span>
             <strong>Dhyan Yog Kendra Evam Prakratik Chikitsa Shodh Sansthan</strong>
-            <small>ध्यान योग केंद्र एवं प्राकृतिक चिकित्सा शोध संस्थान</small>
+            <small>Guided yoga, meditation, and natural wellness support</small>
           </span>
         </a>
         <nav className="main-nav" aria-label="Primary">
@@ -51,13 +51,16 @@ export default function Home() {
       <section className="hero section" id="top">
         <div className="hero-copy">
           <p className="eyebrow">Restore balance in your body and mind</p>
+          <div className="hero-pills">
+            <span>Live Zoom classes</span>
+            <span>Condition-based wellness</span>
+            <span>Diet and lifestyle support</span>
+          </div>
           <div className="hero-brand-row">
             <BrandSeal className="hero-seal" />
             <div className="hero-brand-copy">
               <p className="hero-kicker">Dhyan Yog Kendra Evam Prakratik Chikitsa Shodh Sansthan</p>
-              <p className="hero-kicker-sub">
-                ध्यान योग केंद्र एवं प्राकृतिक चिकित्सा शोध संस्थान
-              </p>
+              <p className="hero-kicker-sub">Holistic yoga, meditation, and natural wellness guidance.</p>
             </div>
           </div>
           <h1>Join personalized yoga and meditation sessions designed around your body, your condition, and your lifestyle.</h1>
@@ -264,6 +267,7 @@ export default function Home() {
         <div className="plan-grid">
           {plans.map((plan) => (
             <article className={`plan-card${plan.featured ? " featured-plan" : ""}`} key={plan.name}>
+              {plan.featured ? <p className="featured-chip">Most loved plan</p> : null}
               <p className="plan-name">{plan.name}</p>
               <h3 className="plan-price">{plan.price}</h3>
               <p>{plan.intro}</p>
@@ -334,7 +338,10 @@ export default function Home() {
         </div>
         <div className="story-grid">
           {stories.map((story) => (
-            <blockquote key={story}>{story}</blockquote>
+            <blockquote key={story}>
+              <span className="quote-mark">“</span>
+              {story}
+            </blockquote>
           ))}
         </div>
       </section>
@@ -481,7 +488,7 @@ export default function Home() {
         </div>
 
         <div className="footer-bottom">
-          <p>© 2026 {footerDetails.organizationName}. All rights reserved.</p>
+          <p>(c) 2026 {footerDetails.organizationName}. All rights reserved.</p>
         </div>
       </footer>
     </main>
