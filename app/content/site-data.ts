@@ -196,6 +196,28 @@ export const trustPoints = [
   "A store that supports the wellness journey"
 ];
 
+export const proofItems = [
+  "Live on Zoom",
+  "Condition-based batches",
+  "Blood-group diet support",
+  "Wellness store support"
+];
+
+export const contactOptions = [
+  {
+    title: "Talk to the team",
+    detail: "Ask about the right batch, timing, or which program fits your condition best."
+  },
+  {
+    title: "Get class guidance",
+    detail: "Share your health goal and we will help you choose the best place to begin."
+  },
+  {
+    title: "Join from anywhere",
+    detail: "All you need is Zoom, a little space, and a routine you can show up for."
+  }
+];
+
 export const benefits = [
   {
     title: "Feel lighter",

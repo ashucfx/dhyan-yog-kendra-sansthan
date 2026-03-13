@@ -2,6 +2,7 @@ import { BrandSeal } from "./components/brand-seal";
 import {
   benefits,
   conditions,
+  contactOptions,
   dietFeatures,
   faqs,
   instructors,
@@ -9,6 +10,7 @@ import {
   plans,
   problems,
   programs,
+  proofItems,
   stats,
   steps,
   storeProducts,
@@ -82,6 +84,14 @@ export default function Home() {
             routine finally fits your life.
           </div>
         </aside>
+      </section>
+
+      <section className="section proof-strip" aria-label="Quick trust points">
+        <div className="proof-row">
+          {proofItems.map((item) => (
+            <span key={item}>{item}</span>
+          ))}
+        </div>
       </section>
 
       <section className="section about-section" id="about">
@@ -379,6 +389,28 @@ export default function Home() {
           </form>
         </div>
       </section>
+
+      <section className="section contact-section">
+        <div className="section-heading narrow">
+          <p className="eyebrow">Need help before joining?</p>
+          <h2>You do not have to figure everything out on your own before you start.</h2>
+        </div>
+        <div className="contact-grid">
+          {contactOptions.map((option) => (
+            <article className="store-card" key={option.title}>
+              <h3>{option.title}</h3>
+              <p>{option.detail}</p>
+              <a href="#join">Get guidance</a>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <div className="mobile-cta">
+        <a className="button" href="#join">
+          Join a Zoom Batch
+        </a>
+      </div>
     </main>
   );
 }
