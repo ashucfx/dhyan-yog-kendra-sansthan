@@ -170,7 +170,9 @@ export default function Home() {
                   <span key={benefit}>{benefit}</span>
                 ))}
               </div>
-              <a href="#join">{program.cta}</a>
+              <a className="card-cta" href="#join">
+                {program.cta}
+              </a>
             </article>
           ))}
         </div>
@@ -194,7 +196,9 @@ export default function Home() {
               <p>
                 <strong>Available classes:</strong> {condition.classes}
               </p>
-              <a href="#join">Explore {condition.title}</a>
+              <a className="card-cta" href="#join">
+                Explore {condition.title}
+              </a>
             </article>
           ))}
         </div>
@@ -281,7 +285,9 @@ export default function Home() {
             <article className="store-card" key={product.title}>
               <h3>{product.title}</h3>
               <p>{product.description}</p>
-              <a href="#join">Explore wellness products</a>
+              <a className="card-cta" href="#join">
+                Explore wellness products
+              </a>
             </article>
           ))}
         </div>
@@ -400,7 +406,9 @@ export default function Home() {
             <article className="store-card" key={option.title}>
               <h3>{option.title}</h3>
               <p>{option.detail}</p>
-              <a href="#join">Get guidance</a>
+              <a className="card-cta" href="#join">
+                Get guidance
+              </a>
             </article>
           ))}
         </div>
