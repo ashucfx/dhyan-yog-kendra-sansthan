@@ -155,6 +155,8 @@ export const programs = [
 
 export const programFilters = ["All", "Hormones", "Pregnancy", "Stress", "Sleep", "General Wellness"];
 
+export const previewPrograms = programs.slice(0, 3);
+
 export const conditions = [
   {
     title: "PCOS",
@@ -397,10 +399,10 @@ export const footerDetails = {
 };
 
 export const footerPrograms = [
-  { label: "PCOS Yoga", href: "#programs" },
-  { label: "Prenatal Yoga", href: "#programs" },
-  { label: "Stress Meditation", href: "#programs" },
-  { label: "Evening Recovery", href: "#batches" }
+  { label: "PCOS Yoga", href: "/programs" },
+  { label: "Prenatal Yoga", href: "/programs" },
+  { label: "Stress Meditation", href: "/programs" },
+  { label: "Evening Recovery", href: "/batches" }
 ];
 
 export const footerLegal = [

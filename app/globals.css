@@ -25,6 +25,40 @@ html {
   scroll-behavior: smooth;
 }
 
+@keyframes floatDrift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -18px, 0);
+  }
+}
+
+@keyframes heroBreath {
+  0%,
+  100% {
+    transform: scale(1.02);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+@keyframes softShine {
+  0% {
+    opacity: 0.2;
+    transform: translateX(-8%);
+  }
+  50% {
+    opacity: 0.42;
+  }
+  100% {
+    opacity: 0.2;
+    transform: translateX(8%);
+  }
+}
+
 body {
   margin: 0;
   min-width: 320px;
@@ -163,9 +197,19 @@ h3 {
 }
 
 .section {
+  position: relative;
   width: min(1180px, calc(100% - 2rem));
   margin: 0 auto;
   padding: 5rem 0;
+}
+
+.section + .section::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(122, 31, 23, 0), rgba(122, 31, 23, 0.12), rgba(214, 167, 110, 0.28), rgba(122, 31, 23, 0.12), rgba(122, 31, 23, 0));
 }
 
 .visual-hero {
@@ -181,6 +225,7 @@ h3 {
 .hero-background-image {
   object-fit: cover;
   object-position: center;
+  animation: heroBreath 18s ease-in-out infinite;
 }
 
 .hero-background-overlay {
@@ -189,6 +234,41 @@ h3 {
   background:
     linear-gradient(90deg, rgba(47, 15, 12, 0.82) 0%, rgba(47, 15, 12, 0.6) 36%, rgba(47, 15, 12, 0.18) 100%),
     linear-gradient(180deg, rgba(23, 8, 7, 0.08), rgba(23, 8, 7, 0.55));
+}
+
+.hero-orb {
+  position: absolute;
+  z-index: 1;
+  border-radius: 999px;
+  pointer-events: none;
+  filter: blur(4px);
+  animation: floatDrift 8s ease-in-out infinite;
+}
+
+.hero-orb-one {
+  top: 10rem;
+  right: 8vw;
+  width: 7rem;
+  height: 7rem;
+  background: radial-gradient(circle, rgba(214, 167, 110, 0.55), rgba(214, 167, 110, 0.04) 70%);
+}
+
+.hero-orb-two {
+  bottom: 9rem;
+  right: 18vw;
+  width: 11rem;
+  height: 11rem;
+  background: radial-gradient(circle, rgba(45, 121, 119, 0.28), rgba(45, 121, 119, 0.02) 72%);
+  animation-delay: -2s;
+}
+
+.hero-orb-three {
+  top: 16rem;
+  left: 48vw;
+  width: 9rem;
+  height: 9rem;
+  background: radial-gradient(circle, rgba(255, 248, 241, 0.16), rgba(255, 248, 241, 0.01) 72%);
+  animation-delay: -4s;
 }
 
 .hero-shell {
@@ -212,7 +292,6 @@ h3 {
   color: rgba(255, 246, 238, 0.86);
 }
 
-.hero-eyebrow,
 .hero-kicker {
   color: #fff4df;
 }
@@ -241,6 +320,16 @@ h3 {
 .hero-kicker {
   font-size: 1.22rem;
   font-weight: 700;
+}
+
+.eyebrow.hero-eyebrow {
+  color: #d9ac74;
+}
+
+.hero-story h1 {
+  max-width: 10.5ch;
+  font-size: clamp(2.9rem, 5.8vw, 4.95rem);
+  line-height: 0.98;
 }
 
 .hero-kicker-sub {
@@ -312,6 +401,40 @@ h2 {
 h3 {
   margin: 0 0 0.8rem;
   font-size: 1.7rem;
+}
+
+.section-heading {
+  display: grid;
+  gap: 0.95rem;
+  margin-bottom: 2rem;
+  max-width: 60rem;
+}
+
+.section-heading.narrow {
+  max-width: 52rem;
+}
+
+.section-heading h2 {
+  max-width: 18ch;
+  font-size: clamp(2rem, 4.2vw, 3.25rem);
+  line-height: 1.06;
+  text-wrap: balance;
+}
+
+.section-heading p:last-child,
+.section-heading + p {
+  max-width: 46rem;
+}
+
+.page-hero {
+  padding-top: 4rem;
+  padding-bottom: 2.4rem;
+}
+
+.page-title {
+  max-width: 13ch;
+  font-size: clamp(2.7rem, 5.4vw, 4.8rem);
+  line-height: 0.98;
 }
 
 .lead,
@@ -478,6 +601,8 @@ textarea:focus-visible {
 .instructor-card,
 .story-card {
   position: relative;
+  display: flex;
+  flex-direction: column;
   border-radius: var(--radius-lg);
   border: 1px solid var(--line);
   background: rgba(255, 249, 242, 0.92);
@@ -487,6 +612,18 @@ textarea:focus-visible {
     transform 220ms ease,
     box-shadow 220ms ease,
     border-color 220ms ease;
+}
+
+.visual-card::before,
+.stat-card::before,
+.story-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent 10%, rgba(255, 255, 255, 0.18), transparent 70%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 220ms ease;
 }
 
 .stat-card:hover,
@@ -502,12 +639,26 @@ textarea:focus-visible {
   box-shadow: 0 28px 58px rgba(68, 28, 20, 0.2);
 }
 
+.visual-card:hover::before,
+.stat-card:hover::before,
+.story-card:hover::before {
+  opacity: 1;
+  animation: softShine 1.2s ease;
+}
+
 .stat-card,
 .step-card,
 .condition-card,
 .plan-card,
 .contact-card {
   padding: 1.5rem;
+}
+
+.condition-card p:last-of-type,
+.store-card p:last-of-type,
+.contact-card p:last-of-type,
+.story-card .story-copy {
+  margin-bottom: 0;
 }
 
 .stat-value {
@@ -552,6 +703,7 @@ textarea:focus-visible {
 .product-image,
 .story-avatar {
   object-fit: cover;
+  transition: transform 380ms ease;
 }
 
 .stacked-panels {
@@ -619,6 +771,10 @@ textarea:focus-visible {
   gap: 1.5rem;
 }
 
+.preview-grid {
+  align-items: stretch;
+}
+
 .filter-row {
   display: flex;
   flex-wrap: wrap;
@@ -671,6 +827,14 @@ textarea:focus-visible {
   background: linear-gradient(180deg, rgba(29, 8, 8, 0.06), rgba(29, 8, 8, 0.44));
 }
 
+.program-card:hover .card-image,
+.support-panel:hover .section-image,
+.instructor-card:hover .section-image,
+.story-card:hover .story-avatar,
+.product-card:hover .product-image {
+  transform: scale(1.06);
+}
+
 .program-badge {
   position: absolute;
   top: 1rem;
@@ -679,6 +843,9 @@ textarea:focus-visible {
 }
 
 .card-copy {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
   padding: 1.4rem;
 }
 
@@ -713,15 +880,19 @@ textarea:focus-visible {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  align-self: flex-start;
   margin-top: 1rem;
   padding: 0.86rem 1.1rem;
   min-height: 2.95rem;
+  width: fit-content;
+  max-width: calc(100% - 0.25rem);
   border-radius: 999px;
   background: var(--accent);
   color: #fffaf7 !important;
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   font-weight: 700;
   line-height: 1.2;
+  white-space: nowrap;
   box-shadow: 0 18px 40px rgba(70, 28, 20, 0.18);
   transition:
     transform 180ms ease,
@@ -741,6 +912,10 @@ textarea:focus-visible {
   margin-top: 1.5rem;
 }
 
+.condition-card {
+  min-width: 0;
+}
+
 .batch-intro {
   margin: 0 0 0.6rem;
   font-size: 1.35rem;
@@ -748,7 +923,15 @@ textarea:focus-visible {
 }
 
 .schedule-strip {
-  margin-top: 2rem;
+  margin-top: 3rem;
+  padding-top: 2.2rem;
+  border-top: 1px solid rgba(122, 31, 23, 0.1);
+}
+
+.schedule-intro {
+  max-width: 52rem;
+  margin: 0 0 1rem;
+  color: var(--muted);
 }
 
 .schedule-view {
@@ -770,6 +953,18 @@ textarea:focus-visible {
     radial-gradient(circle at top right, rgba(214, 167, 110, 0.18), transparent 20%);
   box-shadow: var(--shadow);
   padding: 1.6rem;
+  overflow: hidden;
+  position: relative;
+}
+
+.schedule-card::after {
+  content: "";
+  position: absolute;
+  inset: auto -10% -30% auto;
+  width: 14rem;
+  height: 14rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(214, 167, 110, 0.16), transparent 70%);
 }
 
 .schedule-session-list {
@@ -882,6 +1077,40 @@ textarea:focus-visible {
 .faq-list {
   display: grid;
   gap: 1rem;
+}
+
+.faq-section {
+  padding-bottom: 5.5rem;
+}
+
+.home-preview-section,
+.final-booking-panel {
+  display: grid;
+  gap: 2rem;
+}
+
+.page-cta-strip,
+.booking-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  padding: 1.5rem 1.6rem;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--line);
+  background: rgba(255, 249, 242, 0.78);
+  box-shadow: var(--shadow);
+}
+
+.page-cta-strip h3,
+.booking-panel h2 {
+  margin-bottom: 0;
+}
+
+.booking-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
 }
 
 .faq-item {
@@ -1396,6 +1625,14 @@ textarea:focus-visible {
     flex-wrap: wrap;
   }
 
+  .section-heading {
+    margin-bottom: 1.6rem;
+  }
+
+  .section-heading h2 {
+    max-width: 100%;
+  }
+
   .hero-shell,
   .alternating-section .split-layout,
   .support-panel,
@@ -1424,6 +1661,14 @@ textarea:focus-visible {
     max-width: none;
   }
 
+  .hero-story h1 {
+    max-width: 12ch;
+  }
+
+  .hero-orb {
+    display: none;
+  }
+
   .visual-proof {
     margin-top: -2rem;
   }
@@ -1439,6 +1684,12 @@ textarea:focus-visible {
   .admin-header {
     flex-direction: column;
   }
+
+  .page-cta-strip,
+  .booking-panel {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 
 @media (max-width: 640px) {
@@ -1453,6 +1704,25 @@ textarea:focus-visible {
 
   h2 {
     font-size: 2.1rem;
+  }
+
+  .section-heading {
+    gap: 0.75rem;
+    margin-bottom: 1.35rem;
+  }
+
+  .section-heading h2 {
+    font-size: 1.95rem;
+  }
+
+  .hero-story h1 {
+    max-width: 100%;
+    font-size: 2.7rem;
+  }
+
+  .page-title {
+    max-width: 100%;
+    font-size: 2.55rem;
   }
 
   .button,
@@ -1484,11 +1754,12 @@ textarea:focus-visible {
   }
 
   .brand-lockup strong {
-    font-size: 0.98rem;
+    font-size: 0.92rem;
   }
 
   .brand-lockup small {
-    font-size: 0.75rem;
+    font-size: 0.71rem;
+    line-height: 1.25;
   }
 
   .hero-proof-strip,

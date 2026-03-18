@@ -73,7 +73,7 @@ export function ProgramExplorer({ filters, programs }: ProgramExplorerProps) {
                   <span key={benefit}>{benefit}</span>
                 ))}
               </div>
-              <a className="card-cta" href="#join">
+              <a className="card-cta" href="/join">
                 {program.cta}
               </a>
             </div>
