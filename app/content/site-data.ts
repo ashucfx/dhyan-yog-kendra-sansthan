@@ -406,10 +406,10 @@ export const footerPrograms = [
 ];
 
 export const footerLegal = [
-  { label: "Privacy Policy", href: "#" },
-  { label: "Terms and Conditions", href: "#" },
-  { label: "Refund Policy", href: "#" },
-  { label: "Shipping Policy", href: "#" }
+  { label: "Privacy Policy", href: "/privacy-policy" },
+  { label: "Terms and Conditions", href: "/terms-and-conditions" },
+  { label: "Refund Policy", href: "/refund-policy" },
+  { label: "Shipping Policy", href: "/shipping-policy" }
 ];
 
 export const footerSocials = [

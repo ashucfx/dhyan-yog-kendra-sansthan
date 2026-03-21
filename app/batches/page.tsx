@@ -51,7 +51,7 @@ export default function BatchesPage() {
         </Reveal>
       </section>
 
-      <section className="section benefits">
+      <section className="section benefits page-end-section">
         <div className="section-heading narrow">
           <p className="eyebrow">What people usually want most</p>
           <h2>Less confusion, more fit, and a much easier routine to stay with.</h2>

@@ -576,6 +576,7 @@ textarea:focus-visible {
 
 .visual-proof .stats-grid {
   gap: 1rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .stats-grid,
@@ -660,12 +661,25 @@ textarea:focus-visible {
 
 .stat-card {
   min-height: 100%;
+  overflow: visible;
   gap: 0.45rem;
   justify-content: space-between;
-  padding: 1.3rem 1.35rem;
+  padding: 1.4rem 1.4rem 1.2rem;
+  border-color: rgba(176, 118, 47, 0.26);
   background:
     linear-gradient(180deg, rgba(255, 250, 244, 0.96), rgba(250, 239, 226, 0.92)),
     radial-gradient(circle at top right, rgba(214, 167, 110, 0.18), transparent 28%);
+}
+
+.stat-card::after {
+  content: "";
+  position: absolute;
+  left: 1.4rem;
+  right: 1.4rem;
+  top: 0;
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--highlight), var(--accent));
 }
 
 .condition-card p:last-of-type,
@@ -793,6 +807,10 @@ textarea:focus-visible {
   align-items: stretch;
 }
 
+.home-preview-section .visual-program-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .filter-row {
   display: flex;
   flex-wrap: wrap;
@@ -865,6 +883,10 @@ textarea:focus-visible {
   flex-direction: column;
   height: 100%;
   padding: 1.4rem;
+}
+
+.card-copy p:last-of-type {
+  margin-bottom: 0;
 }
 
 .program-short {
@@ -1120,11 +1142,11 @@ textarea:focus-visible {
 }
 
 .home-section-heading {
-  max-width: 50rem;
+  max-width: 42rem;
 }
 
 .home-section-heading h2 {
-  max-width: 14ch;
+  max-width: 12ch;
 }
 
 .page-cta-strip,
@@ -1148,11 +1170,73 @@ textarea:focus-visible {
 }
 
 .page-cta-strip {
-  margin-top: 0.4rem;
+  margin-top: 1rem;
+  padding: 1.85rem 1.8rem;
 }
 
 .page-cta-strip > div:first-child {
   max-width: 38rem;
+}
+
+.page-end-section {
+  padding-bottom: 6.5rem;
+}
+
+.programs-page-section .visual-program-grid {
+  grid-template-columns: 1fr;
+}
+
+.programs-page-section .program-card {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.88fr) minmax(0, 1.12fr);
+  grid-template-rows: none;
+}
+
+.programs-page-section .card-image-shell {
+  min-height: 100%;
+}
+
+.programs-page-section .card-copy {
+  padding: 1.55rem 1.6rem;
+}
+
+.legal-highlights,
+.legal-content {
+  display: grid;
+  gap: 1.6rem;
+}
+
+.legal-grid,
+.legal-stack {
+  display: grid;
+  gap: 1rem;
+}
+
+.legal-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.legal-card {
+  padding: 1.45rem;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(180deg, rgba(255, 250, 244, 0.95), rgba(250, 239, 226, 0.9)),
+    radial-gradient(circle at top right, rgba(214, 167, 110, 0.14), transparent 28%);
+  box-shadow: var(--shadow);
+}
+
+.legal-detail-card h2 {
+  margin-bottom: 1rem;
+  font-size: 1.7rem;
+}
+
+.legal-detail-card p + p {
+  margin-top: 0.8rem;
+}
+
+.legal-cta {
+  margin-top: 1.6rem;
 }
 
 .booking-actions {
@@ -1657,7 +1741,8 @@ textarea:focus-visible {
   .condition-grid,
   .instructor-grid,
   .contact-grid,
-  .compact-therapy-grid {
+  .compact-therapy-grid,
+  .legal-grid {
     grid-template-columns: 1fr 1fr;
   }
 }
@@ -1695,7 +1780,8 @@ textarea:focus-visible {
   .instructor-grid,
   .visual-story-grid,
   .join-visual-panel,
-  .footer-main {
+  .footer-main,
+  .programs-page-section .program-card {
     grid-template-columns: 1fr;
   }
 
@@ -1738,6 +1824,11 @@ textarea:focus-visible {
     flex-direction: column;
     align-items: flex-start;
   }
+
+  .visual-proof .stats-grid,
+  .home-preview-section .visual-program-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 640px) {
@@ -1775,6 +1866,10 @@ textarea:focus-visible {
 
   .home-section-heading h2 {
     max-width: 100%;
+  }
+
+  .legal-grid {
+    grid-template-columns: 1fr;
   }
 
   .button,

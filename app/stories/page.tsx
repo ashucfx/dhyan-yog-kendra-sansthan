@@ -48,7 +48,7 @@ export default function StoriesPage() {
         </Reveal>
       </section>
 
-      <section className="section stories">
+      <section className="section stories page-end-section">
         <div className="section-heading">
           <p className="eyebrow">Student voices</p>
           <h2>Real names and real stories make the whole decision feel more grounded.</h2>

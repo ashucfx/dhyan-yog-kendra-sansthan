@@ -115,11 +115,10 @@ export function SiteShell({ children }: SiteShellProps) {
               <div className="footer-column">
                 <p className="footer-title">Legal</p>
                 {footerLegal.map((item) => (
-                  <a key={item.label} href={item.href}>
+                  <Link key={item.label} href={item.href}>
                     {item.label}
-                  </a>
+                  </Link>
                 ))}
-                <Link href="/admin/submissions">Admin login</Link>
               </div>
 
               <div className="footer-column">

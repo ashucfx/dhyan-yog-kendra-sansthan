@@ -37,7 +37,7 @@ export default function StorePage() {
         </StaggerList>
       </section>
 
-      <section className="section contact-section">
+      <section className="section contact-section page-end-section">
         <div className="section-heading narrow">
           <p className="eyebrow">Need product guidance?</p>
           <h2>Ask before you buy so the store still feels personal and supportive.</h2>

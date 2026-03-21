@@ -19,7 +19,7 @@ export default function ProgramsPage() {
         </div>
       </section>
 
-      <section className="section">
+      <section className="section programs-page-section">
         <ProgramExplorer filters={programFilters} programs={programs} />
       </section>
 

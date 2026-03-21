@@ -36,7 +36,7 @@ export default function JoinPage() {
         </div>
       </section>
 
-      <section className="section faq-section">
+      <section className="section faq-section page-end-section">
         <div className="section-heading narrow">
           <p className="eyebrow">Before you submit</p>
           <h2>These answers usually make the booking step feel easier.</h2>
