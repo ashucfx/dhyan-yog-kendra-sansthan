@@ -13,7 +13,13 @@ type JoinPayload = {
 };
 
 export async function POST(request: Request) {
-  const payload = (await request.json()) as JoinPayload;
+  let payload: JoinPayload;
+
+  try {
+    payload = (await request.json()) as JoinPayload;
+  } catch {
+    return Response.json({ message: "Invalid request payload." }, { status: 400 });
+  }
 
   if (!payload.name || !payload.phone || !payload.email || !payload.bloodGroup || !payload.condition || !payload.batchType || !payload.goal) {
     return Response.json({ message: "Please fill in the required details so we can place you properly." }, { status: 400 });
@@ -32,13 +38,31 @@ export async function POST(request: Request) {
     createdAt: new Date().toISOString()
   };
 
-  const storage = await saveSubmission(entry);
-  await sendSubmissionNotification(entry);
+  let storage: "supabase" | "local";
+  try {
+    storage = await saveSubmission(entry);
+  } catch (error) {
+    return Response.json(
+      {
+        message: "We could not save your details right now. Please try again in a moment.",
+        error: error instanceof Error ? error.message : "Unknown storage error"
+      },
+      { status: 500 }
+    );
+  }
+
+  let notificationSent = false;
+  try {
+    notificationSent = await sendSubmissionNotification(entry);
+  } catch {
+    notificationSent = false;
+  }
 
   return Response.json(
     {
       message: "Your details have been saved.",
-      storage
+      storage,
+      notificationSent
     },
     { status: 201 }
   );
