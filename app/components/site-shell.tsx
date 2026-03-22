@@ -83,15 +83,15 @@ export function SiteShell({ children }: SiteShellProps) {
           <div className="footer-utility">
             <div className="footer-map">
               <p className="footer-title">Visit the center</p>
-              <div className="map-card" aria-label="Organization map placeholder">
-                <div className="map-grid" />
-                <div className="map-pin">
-                  <span className="map-pin-dot" />
-                </div>
-                <div className="map-label">
-                  <strong>{footerDetails.organizationName}</strong>
-                  <span>{footerDetails.address}</span>
-                </div>
+              <div className="map-card">
+                <iframe
+                  title="Dhyan Yog Kendra location map"
+                  className="map-embed"
+                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3497.4922112823506!2d76.0870890134918!3d28.764574228351627!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x391261368dd33659%3A0x529c211684c7ec8f!2sDhyan%20Yog%20Kendra%20Evam%20Prakratik%20Chikitsa%20Shodh%20Sansthan!5e0!3m2!1sen!2sin!4v1774188920319!5m2!1sen!2sin"
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  allowFullScreen
+                />
               </div>
             </div>
 

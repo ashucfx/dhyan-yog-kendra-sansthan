@@ -1622,60 +1622,17 @@ textarea:focus-visible {
 
 .map-card {
   position: relative;
-  min-height: 11rem;
+  min-height: 15rem;
   overflow: hidden;
   border-radius: 18px;
   border: 1px solid rgba(255, 250, 241, 0.12);
-  background:
-    linear-gradient(135deg, rgba(197, 154, 98, 0.16), transparent 35%),
-    linear-gradient(180deg, rgba(255, 250, 241, 0.08), rgba(255, 250, 241, 0.02)),
-    #4f2117;
 }
 
-.map-grid {
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(rgba(255, 250, 241, 0.08) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 250, 241, 0.08) 1px, transparent 1px);
-  background-size: 2.5rem 2.5rem;
-}
-
-.map-pin {
-  position: absolute;
-  top: 50%;
-  left: 58%;
-  transform: translate(-50%, -70%);
-  width: 2.6rem;
-  height: 2.6rem;
-  border-radius: 999px 999px 999px 0;
-  rotate: -45deg;
-  background: linear-gradient(180deg, var(--highlight), var(--accent));
-}
-
-.map-pin-dot {
-  position: absolute;
-  inset: 0.65rem;
-  border-radius: 999px;
-  background: #fff8ef;
-}
-
-.map-label {
-  position: absolute;
-  left: 1.1rem;
-  right: 1.1rem;
-  bottom: 1rem;
-  display: grid;
-  gap: 0.25rem;
-  padding: 0.95rem 1rem;
-  border-radius: 18px;
-  background: rgba(255, 250, 241, 0.92);
-  color: var(--text);
-}
-
-.map-label span {
-  color: var(--muted);
-  font-size: 0.78rem;
+.map-embed {
+  width: 100%;
+  min-height: 15rem;
+  border: 0;
+  display: block;
 }
 
 .admin-page {
