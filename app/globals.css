@@ -511,6 +511,10 @@ small {
   box-shadow: none;
 }
 
+.button-floating {
+  box-shadow: 0 22px 45px rgba(70, 28, 20, 0.28);
+}
+
 .button:focus-visible,
 .card-cta:focus-visible,
 .main-nav a:focus-visible,
@@ -1272,6 +1276,31 @@ textarea:focus-visible {
   overflow: hidden;
 }
 
+.join-booking-stack {
+  display: grid;
+  gap: 1rem;
+}
+
+.join-form-card,
+.join-calendly-card {
+  padding: 1.3rem;
+}
+
+.calendly-inline-shell {
+  margin-top: 0.4rem;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: rgba(255, 250, 243, 0.7);
+}
+
+.calendly-inline-frame {
+  width: 100%;
+  min-height: 600px;
+  border: 0;
+  background: transparent;
+}
+
 .feature-ribbon,
 .join-points {
   margin-top: 1.3rem;
@@ -1374,6 +1403,13 @@ textarea:focus-visible {
 
 .mobile-cta {
   display: none;
+}
+
+.floating-cta {
+  position: fixed;
+  right: 1.1rem;
+  bottom: 1rem;
+  z-index: 35;
 }
 
 .site-footer {
@@ -1825,6 +1861,11 @@ textarea:focus-visible {
     align-items: flex-start;
   }
 
+  .floating-cta {
+    right: 0.8rem;
+    bottom: 0.8rem;
+  }
+
   .visual-proof .stats-grid,
   .home-preview-section .visual-program-grid {
     grid-template-columns: 1fr;
@@ -1945,5 +1986,13 @@ textarea:focus-visible {
     width: min(100% - 1.25rem, 1180px);
     margin: 0 auto 1rem;
     padding-bottom: 1rem;
+  }
+
+  .floating-cta {
+    display: none;
+  }
+
+  .calendly-inline-frame {
+    min-height: 540px;
   }
 }

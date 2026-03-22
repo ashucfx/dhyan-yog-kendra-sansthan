@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { BrandSeal } from "./components/brand-seal";
+import { CalendlyButton } from "./components/calendly";
 import { Reveal, StaggerItem, StaggerList } from "./components/reveal";
 import { SiteShell } from "./components/site-shell";
 import {
@@ -52,9 +53,7 @@ export default function Home() {
             </p>
 
             <div className="hero-actions">
-              <Link className="button" href="/join">
-                Book My Wellness Call
-              </Link>
+              <CalendlyButton className="button" label="Book Your Free Consultation" source="hero_primary" />
               <Link className="button button-ghost" href="/programs">
                 Explore Programs
               </Link>
@@ -221,9 +220,7 @@ export default function Home() {
             </p>
           </div>
           <div className="booking-actions">
-            <Link className="button" href="/join">
-              Go to Booking Form
-            </Link>
+            <CalendlyButton className="button" label="Book Your Free Consultation" source="home_final_cta" />
             <Link className="button button-secondary" href="/stories">
               See Trust and Stories
             </Link>

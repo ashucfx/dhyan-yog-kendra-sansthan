@@ -1,5 +1,5 @@
-import Link from "next/link";
 import Image from "next/image";
+import { CalendlyButton } from "../components/calendly";
 import { StaggerItem, StaggerList } from "../components/reveal";
 import { SiteShell } from "../components/site-shell";
 import { contactOptions, storeProducts } from "../content/site-data";
@@ -28,9 +28,7 @@ export default function StorePage() {
                 </div>
                 <h3>{product.title}</h3>
                 <p>{product.description}</p>
-                <Link className="card-cta" href="/join">
-                  Shop now
-                </Link>
+                <CalendlyButton className="card-cta" label="Book before you buy" source="store_product_cta" />
               </article>
             </StaggerItem>
           ))}
@@ -48,9 +46,7 @@ export default function StorePage() {
               <article className="store-card visual-card contact-card">
                 <h3>{option.title}</h3>
                 <p>{option.detail}</p>
-                <Link className="card-cta" href="/join">
-                  Talk to the team
-                </Link>
+                <CalendlyButton className="card-cta" label="Book guidance call" source="store_contact_cta" />
               </article>
             </StaggerItem>
           ))}

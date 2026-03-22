@@ -1,5 +1,5 @@
 import Image from "next/image";
-import Link from "next/link";
+import { CalendlyButton } from "../components/calendly";
 import { Reveal, StaggerItem, StaggerList } from "../components/reveal";
 import { SiteShell } from "../components/site-shell";
 import { instructors, stories, trustPoints } from "../content/site-data";
@@ -76,9 +76,7 @@ export default function StoriesPage() {
             <p className="eyebrow">Ready to take the next step?</p>
             <h3>Move from reading stories to booking a call with the team.</h3>
           </div>
-          <Link className="button" href="/join">
-            Book My Wellness Call
-          </Link>
+          <CalendlyButton className="button" label="Book Your Free Consultation" source="stories_bottom_cta" />
         </div>
       </section>
     </SiteShell>

@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
+import { CalendlyButton } from "./calendly";
 
 type Program = {
   title: string;
@@ -73,9 +74,7 @@ export function ProgramExplorer({ filters, programs }: ProgramExplorerProps) {
                   <span key={benefit}>{benefit}</span>
                 ))}
               </div>
-              <a className="card-cta" href="/join">
-                {program.cta}
-              </a>
+              <CalendlyButton className="card-cta" label={program.cta} source={`program_${program.concern.toLowerCase()}`} />
             </div>
           </motion.article>
         ))}

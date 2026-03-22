@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { CalendlyButton } from "./calendly";
 import { SiteShell } from "./site-shell";
 
 type LegalHighlight = {
@@ -58,9 +58,7 @@ export function LegalPage({ eyebrow, title, intro, highlights, sections }: Legal
             <p className="eyebrow">Need help?</p>
             <h3>If you want clarification before joining, speak with the team directly.</h3>
           </div>
-          <Link className="button" href="/join">
-            Book a Wellness Call
-          </Link>
+          <CalendlyButton className="button" label="Book Your Free Consultation" source="legal_bottom_cta" />
         </div>
       </section>
     </SiteShell>

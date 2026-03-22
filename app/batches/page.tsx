@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { CalendlyButton } from "../components/calendly";
 import { Reveal, StaggerItem, StaggerList } from "../components/reveal";
 import { ScheduleView } from "../components/schedule-view";
 import { SiteShell } from "../components/site-shell";
@@ -72,9 +72,7 @@ export default function BatchesPage() {
             <p className="eyebrow">Need help choosing?</p>
             <h3>Book a quick call and let the team recommend the best batch.</h3>
           </div>
-          <Link className="button" href="/join">
-            Book My Batch Call
-          </Link>
+          <CalendlyButton className="button" label="Book Your Free Consultation" source="batches_bottom_cta" />
         </div>
       </section>
     </SiteShell>

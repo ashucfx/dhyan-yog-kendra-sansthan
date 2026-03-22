@@ -1,6 +1,6 @@
 import Image from "next/image";
-import Link from "next/link";
 import { ProgramExplorer } from "../components/program-explorer";
+import { CalendlyButton } from "../components/calendly";
 import { Reveal } from "../components/reveal";
 import { SiteShell } from "../components/site-shell";
 import { conditions, dietFeatures, liveClassHighlights, programFilters, programs } from "../content/site-data";
@@ -43,9 +43,7 @@ export default function ProgramsPage() {
                   <p>
                     <strong>Classes:</strong> {condition.classes}
                   </p>
-                  <Link className="card-cta" href="/join">
-                    See batch
-                  </Link>
+                  <CalendlyButton className="card-cta" label="Book this program" source={`condition_${condition.title.toLowerCase()}`} />
                 </article>
               ))}
             </div>
