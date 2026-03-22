@@ -21,10 +21,10 @@ const initialState: FormState = {
   name: "",
   phone: "",
   email: "",
-  bloodGroup: "A+",
-  condition: "PCOS",
-  batchType: "Condition-specific batch",
-  goal: "Balance hormones",
+  bloodGroup: "",
+  condition: "",
+  batchType: "",
+  goal: "",
   notes: ""
 };
 
@@ -111,8 +111,13 @@ export function JoinForm({ conditions }: JoinFormProps) {
       <label htmlFor="blood-group">
         Blood group
         <select id="blood-group" value={form.bloodGroup} onChange={(event) => updateField("bloodGroup", event.target.value)} required>
+          <option value="" disabled>
+            Select blood group
+          </option>
           {bloodGroups.map((group) => (
-            <option key={group}>{group}</option>
+            <option key={group} value={group}>
+              {group}
+            </option>
           ))}
         </select>
       </label>
@@ -120,8 +125,13 @@ export function JoinForm({ conditions }: JoinFormProps) {
       <label htmlFor="condition">
         Health condition
         <select id="condition" value={form.condition} onChange={(event) => updateField("condition", event.target.value)} required>
+          <option value="" disabled>
+            Select health condition
+          </option>
           {conditions.map((condition) => (
-            <option key={condition}>{condition}</option>
+            <option key={condition} value={condition}>
+              {condition}
+            </option>
           ))}
         </select>
       </label>
@@ -129,8 +139,13 @@ export function JoinForm({ conditions }: JoinFormProps) {
       <label htmlFor="batch-type">
         Preferred batch type
         <select id="batch-type" value={form.batchType} onChange={(event) => updateField("batchType", event.target.value)} required>
+          <option value="" disabled>
+            Select batch type
+          </option>
           {batchTypes.map((batch) => (
-            <option key={batch}>{batch}</option>
+            <option key={batch} value={batch}>
+              {batch}
+            </option>
           ))}
         </select>
       </label>
@@ -138,8 +153,13 @@ export function JoinForm({ conditions }: JoinFormProps) {
       <label htmlFor="goal">
         Your main goal
         <select id="goal" value={form.goal} onChange={(event) => updateField("goal", event.target.value)} required>
+          <option value="" disabled>
+            Select your goal
+          </option>
           {goals.map((goal) => (
-            <option key={goal}>{goal}</option>
+            <option key={goal} value={goal}>
+              {goal}
+            </option>
           ))}
         </select>
       </label>
