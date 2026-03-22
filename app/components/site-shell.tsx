@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ReactNode } from "react";
 import { BrandSeal } from "./brand-seal";
 import { SocialIcon } from "./social-icon";
-import { CalendlyAssets, CalendlyButton } from "./calendly";
+import { CalendlyButton } from "./calendly";
 import { brand, footerDetails, footerLegal, footerPrograms, footerSocials } from "../content/site-data";
 
 type SiteShellProps = {
@@ -21,7 +21,6 @@ const primaryNav = [
 export function SiteShell({ children }: SiteShellProps) {
   return (
     <main>
-      <CalendlyAssets />
       <header className="site-header">
         <Link className="brand brand-lockup" href="/">
           <BrandSeal className="nav-seal" />

@@ -30,13 +30,26 @@ type CalendlyButtonProps = {
   className: string;
   label: string;
   source?: string;
+  mode?: "redirect" | "popup";
+  redirectTo?: string;
 };
 
-export function CalendlyButton({ className, label, source }: CalendlyButtonProps) {
+export function CalendlyButton({
+  className,
+  label,
+  source,
+  mode = "redirect",
+  redirectTo = "/join"
+}: CalendlyButtonProps) {
   const calendlyUrl = useMemo(() => buildCalendlyUrl(source), [source]);
 
   function openCalendly() {
     if (typeof window === "undefined") {
+      return;
+    }
+
+    if (mode === "redirect") {
+      window.location.href = redirectTo;
       return;
     }
 

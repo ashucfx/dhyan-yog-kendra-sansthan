@@ -30,7 +30,12 @@ export default function JoinPage() {
               ))}
             </ul>
             <div className="booking-actions">
-              <CalendlyButton className="button" label="Book Your Free Consultation" source="join_primary" />
+              <CalendlyButton
+                className="button"
+                label="Book Your Free Consultation"
+                source="join_primary"
+                mode="popup"
+              />
               <a className="button button-secondary" href={`mailto:${booking.supportEmail}`}>
                 Email support
               </a>
