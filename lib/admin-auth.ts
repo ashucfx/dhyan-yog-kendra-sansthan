@@ -5,15 +5,16 @@ const adminCookieName = "dhyan_admin_session";
 
 function sanitizeSecret(value: string) {
   const trimmed = value.trim();
+  const normalized = trimmed.replace(/\\([\\$"'`])/g, "$1");
 
   if (
-    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
-    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+    (normalized.startsWith('"') && normalized.endsWith('"')) ||
+    (normalized.startsWith("'") && normalized.endsWith("'"))
   ) {
-    return trimmed.slice(1, -1).trim();
+    return normalized.slice(1, -1).trim();
   }
 
-  return trimmed;
+  return normalized;
 }
 
 function getAdminSecret() {
