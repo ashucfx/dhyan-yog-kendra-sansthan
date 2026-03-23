@@ -1,10 +1,13 @@
 import { sendSubmissionNotification } from "@/lib/notifications";
+import { formatE164, getCountryRuleByIso, isValidPhoneForRule, normalizePhoneDigits } from "@/lib/country-phone";
 import { saveSubmission } from "@/lib/submissions";
 
 type JoinPayload = {
   name?: string;
+  countryIso?: string;
   countryCode?: string;
   phone?: string;
+  fullPhone?: string;
   email?: string;
   bloodGroup?: string;
   condition?: string;
@@ -14,23 +17,6 @@ type JoinPayload = {
 };
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-function normalizeCountryCode(code: string) {
-  const value = code.trim().replace(/[^\d+]/g, "");
-  return value.startsWith("+") ? value : `+${value.replace(/\+/g, "")}`;
-}
-
-function normalizePhoneDigits(phone: string) {
-  return phone.replace(/\D/g, "");
-}
-
-function isValidPhoneByCountry(countryCode: string, phoneDigits: string) {
-  if (countryCode === "+91") {
-    return /^[6-9]\d{9}$/.test(phoneDigits);
-  }
-
-  return /^\d{6,14}$/.test(phoneDigits);
-}
 
 function sanitizeName(name: string) {
   return name.trim().replace(/\s+/g, " ");
@@ -59,13 +45,14 @@ export async function POST(request: Request) {
 
   const cleanedName = sanitizeName(payload.name);
   const cleanedEmail = sanitizeEmail(payload.email);
-  const cleanedCountryCode = normalizeCountryCode(payload.countryCode || "+91");
+  const cleanedCountryIso = (payload.countryIso || "").trim().toUpperCase();
   const cleanedPhoneDigits = normalizePhoneDigits(payload.phone);
   const cleanedBloodGroup = sanitizeText(payload.bloodGroup);
   const cleanedCondition = sanitizeText(payload.condition);
   const cleanedBatchType = sanitizeText(payload.batchType);
   const cleanedGoal = sanitizeText(payload.goal);
   const cleanedNotes = sanitizeText(payload.notes);
+  const countryRule = getCountryRuleByIso(cleanedCountryIso);
 
   if (cleanedName.length < 2 || cleanedName.length > 80) {
     return Response.json({ message: "Please enter a valid full name." }, { status: 400 });
@@ -75,22 +62,36 @@ export async function POST(request: Request) {
     return Response.json({ message: "Please enter a valid email address." }, { status: 400 });
   }
 
-  if (!/^\+\d{1,4}$/.test(cleanedCountryCode)) {
-    return Response.json({ message: "Please select a valid country code." }, { status: 400 });
+  if (!countryRule) {
+    return Response.json({ message: "Please select a valid country." }, { status: 400 });
   }
 
-  if (!isValidPhoneByCountry(cleanedCountryCode, cleanedPhoneDigits)) {
-    return Response.json({ message: "Please enter a valid mobile number." }, { status: 400 });
+  if (!isValidPhoneForRule(countryRule, cleanedPhoneDigits)) {
+    return Response.json({ message: `Please enter a valid ${countryRule.country} mobile number.` }, { status: 400 });
   }
 
   if (cleanedNotes.length > 800) {
     return Response.json({ message: "Notes are too long. Please keep them within 800 characters." }, { status: 400 });
   }
 
+  const fullPhone = formatE164(countryRule, cleanedPhoneDigits);
+
+  if (payload.countryCode && payload.countryCode !== countryRule.dialCode) {
+    return Response.json({ message: "Country code does not match the selected country." }, { status: 400 });
+  }
+
+  if (payload.fullPhone && payload.fullPhone !== fullPhone) {
+    return Response.json({ message: "Phone number does not match the selected country." }, { status: 400 });
+  }
+
   const entry = {
     id: crypto.randomUUID(),
     name: cleanedName,
-    phone: `${cleanedCountryCode} ${cleanedPhoneDigits}`,
+    countryIso: countryRule.iso,
+    country: countryRule.country,
+    countryCode: countryRule.dialCode,
+    phone: fullPhone,
+    phoneNational: cleanedPhoneDigits,
     email: cleanedEmail,
     bloodGroup: cleanedBloodGroup,
     condition: cleanedCondition,

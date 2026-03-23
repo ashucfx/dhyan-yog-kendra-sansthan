@@ -91,6 +91,7 @@ export default async function AdminSubmissionsPage({
             <thead>
               <tr>
                 <th>Name</th>
+                <th>Country</th>
                 <th>Phone</th>
                 <th>Email</th>
                 <th>Blood group</th>
@@ -106,6 +107,7 @@ export default async function AdminSubmissionsPage({
                 submissions.map((item) => (
                   <tr key={item.id}>
                     <td>{item.name}</td>
+                    <td>{item.country} ({item.countryCode})</td>
                     <td>{item.phone}</td>
                     <td>{item.email}</td>
                     <td>{item.bloodGroup}</td>
@@ -118,7 +120,7 @@ export default async function AdminSubmissionsPage({
                 ))
               ) : (
                 <tr>
-                  <td colSpan={9}>No submissions yet.</td>
+                  <td colSpan={10}>No submissions yet.</td>
                 </tr>
               )}
             </tbody>

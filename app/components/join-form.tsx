@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { COUNTRY_PHONE_RULES, formatE164, getCountryRuleByIso, isValidPhoneForRule, normalizePhoneDigits } from "@/lib/country-phone";
 
 type JoinFormProps = {
   conditions: string[];
@@ -8,7 +9,7 @@ type JoinFormProps = {
 
 type FormState = {
   name: string;
-  countryCode: string;
+  countryIso: string;
   phone: string;
   email: string;
   bloodGroup: string;
@@ -20,7 +21,7 @@ type FormState = {
 
 const initialState: FormState = {
   name: "",
-  countryCode: "+91",
+  countryIso: "IN",
   phone: "",
   email: "",
   bloodGroup: "",
@@ -43,27 +44,13 @@ const goals = [
   "Build a daily routine"
 ];
 
-const countryCodes = [
-  { code: "+91", label: "India (+91)" },
-  { code: "+1", label: "USA/Canada (+1)" },
-  { code: "+44", label: "UK (+44)" },
-  { code: "+61", label: "Australia (+61)" },
-  { code: "+971", label: "UAE (+971)" },
-  { code: "+65", label: "Singapore (+65)" },
-  { code: "+49", label: "Germany (+49)" },
-  { code: "+33", label: "France (+33)" }
-];
-
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-function normalizeDigits(phone: string) {
-  return phone.replace(/\D/g, "");
-}
 
 function validateField(form: FormState, field: keyof FormState): string {
   const cleanName = form.name.trim().replace(/\s+/g, " ");
   const cleanEmail = form.email.trim().toLowerCase();
-  const digits = normalizeDigits(form.phone);
+  const digits = normalizePhoneDigits(form.phone);
+  const selectedRule = getCountryRuleByIso(form.countryIso);
 
   if (field === "name") {
     if (!cleanName) return "Name is required.";
@@ -71,16 +58,16 @@ function validateField(form: FormState, field: keyof FormState): string {
     return "";
   }
 
-  if (field === "countryCode") {
-    if (!form.countryCode) return "Please select a country code.";
-    if (!/^\+\d{1,4}$/.test(form.countryCode)) return "Please select a valid country code.";
+  if (field === "countryIso") {
+    if (!form.countryIso) return "Please select a country.";
+    if (!selectedRule) return "Please select a valid country.";
     return "";
   }
 
   if (field === "phone") {
     if (!digits) return "Mobile number is required.";
-    if (form.countryCode === "+91" && !/^[6-9]\d{9}$/.test(digits)) return "Enter a valid Indian mobile number.";
-    if (form.countryCode !== "+91" && !/^\d{6,14}$/.test(digits)) return "Enter a valid mobile number.";
+    if (!selectedRule) return "Please select a valid country first.";
+    if (!isValidPhoneForRule(selectedRule, digits)) return `Enter a valid ${selectedRule.country} mobile number.`;
     return "";
   }
 
@@ -100,7 +87,7 @@ function validateField(form: FormState, field: keyof FormState): string {
 }
 
 function validateForm(form: FormState): FormErrors {
-  const fields: (keyof FormState)[] = ["name", "countryCode", "phone", "email", "bloodGroup", "condition", "batchType", "goal", "notes"];
+  const fields: (keyof FormState)[] = ["name", "countryIso", "phone", "email", "bloodGroup", "condition", "batchType", "goal", "notes"];
   const errors: FormErrors = {};
 
   for (const field of fields) {
@@ -126,7 +113,7 @@ export function JoinForm({ conditions }: JoinFormProps) {
       if (touched[field]) {
         setErrors((prev) => ({ ...prev, [field]: validateField(next, field) }));
       }
-      if (field === "countryCode" && touched.phone) {
+      if (field === "countryIso" && touched.phone) {
         setErrors((prev) => ({ ...prev, phone: validateField(next, "phone") }));
       }
       return next;
@@ -148,7 +135,7 @@ export function JoinForm({ conditions }: JoinFormProps) {
       setErrors(formErrors);
       setTouched({
         name: true,
-        countryCode: true,
+        countryIso: true,
         phone: true,
         email: true,
         bloodGroup: true,
@@ -162,9 +149,16 @@ export function JoinForm({ conditions }: JoinFormProps) {
       return;
     }
 
+    const selectedRule = getCountryRuleByIso(form.countryIso);
+    if (!selectedRule) {
+      setStatus("error");
+      setMessage("Please select a valid country.");
+      return;
+    }
+
     const cleanName = form.name.trim().replace(/\s+/g, " ");
     const cleanEmail = form.email.trim().toLowerCase();
-    const cleanPhone = normalizeDigits(form.phone);
+    const cleanPhoneDigits = normalizePhoneDigits(form.phone);
 
     try {
       const response = await fetch("/api/join", {
@@ -174,9 +168,11 @@ export function JoinForm({ conditions }: JoinFormProps) {
         },
         body: JSON.stringify({
           ...form,
+          countryCode: selectedRule.dialCode,
+          phone: cleanPhoneDigits,
+          fullPhone: formatE164(selectedRule, cleanPhoneDigits),
           name: cleanName,
-          email: cleanEmail,
-          phone: cleanPhone
+          email: cleanEmail
         })
       });
 
@@ -217,23 +213,23 @@ export function JoinForm({ conditions }: JoinFormProps) {
       </label>
 
       <div className="phone-field">
-        <label htmlFor="country-code">
-          Country code
+        <label htmlFor="country-iso">
+          Country
           <select
-            id="country-code"
-            value={form.countryCode}
-            onChange={(event) => updateField("countryCode", event.target.value)}
-            onBlur={() => handleBlur("countryCode")}
-            aria-invalid={Boolean(errors.countryCode)}
+            id="country-iso"
+            value={form.countryIso}
+            onChange={(event) => updateField("countryIso", event.target.value)}
+            onBlur={() => handleBlur("countryIso")}
+            aria-invalid={Boolean(errors.countryIso)}
             required
           >
-            {countryCodes.map((item) => (
-              <option key={item.code} value={item.code}>
-                {item.label}
+            {COUNTRY_PHONE_RULES.map((item) => (
+              <option key={item.iso} value={item.iso}>
+                {item.country} ({item.dialCode})
               </option>
             ))}
           </select>
-          {errors.countryCode ? <span className="field-error">{errors.countryCode}</span> : null}
+          {errors.countryIso ? <span className="field-error">{errors.countryIso}</span> : null}
         </label>
 
         <label htmlFor="phone">
@@ -378,10 +374,11 @@ export function JoinForm({ conditions }: JoinFormProps) {
       </button>
 
       <p className="microcopy">
-        We use your blood group, condition, and goal to guide batch placement and your first diet chart direction.
+        We use your blood group, condition, goal, and region to guide batch placement and your first diet chart direction.
       </p>
 
       {message ? <p className={`form-status form-status-${status}`}>{message}</p> : null}
     </form>
   );
 }
+

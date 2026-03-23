@@ -5,7 +5,11 @@ import { createClient } from "@supabase/supabase-js";
 export type SubmissionRecord = {
   id: string;
   name: string;
+  countryIso: string;
+  country: string;
+  countryCode: string;
   phone: string;
+  phoneNational: string;
   email: string;
   bloodGroup: string;
   condition: string;
@@ -37,7 +41,23 @@ function getSupabaseClient() {
 export async function readLocalSubmissions() {
   try {
     const content = await readFile(dataFile, "utf8");
-    return JSON.parse(content) as SubmissionRecord[];
+    const entries = JSON.parse(content) as Partial<SubmissionRecord>[];
+    return entries.map((entry) => ({
+      id: entry.id ?? crypto.randomUUID(),
+      name: entry.name ?? "",
+      countryIso: entry.countryIso ?? "IN",
+      country: entry.country ?? "India",
+      countryCode: entry.countryCode ?? "+91",
+      phone: entry.phone ?? "",
+      phoneNational: entry.phoneNational ?? entry.phone ?? "",
+      email: entry.email ?? "",
+      bloodGroup: entry.bloodGroup ?? "",
+      condition: entry.condition ?? "",
+      batchType: entry.batchType ?? "",
+      goal: entry.goal ?? "",
+      notes: entry.notes ?? "",
+      createdAt: entry.createdAt ?? new Date(0).toISOString()
+    })) satisfies SubmissionRecord[];
   } catch {
     return [];
   }
@@ -57,7 +77,11 @@ export async function saveSubmission(entry: SubmissionRecord) {
     const { error } = await supabase.from("submissions").insert({
       id: entry.id,
       name: entry.name,
+      country_iso: entry.countryIso,
+      country_name: entry.country,
+      country_code: entry.countryCode,
       phone: entry.phone,
+      phone_national: entry.phoneNational,
       email: entry.email,
       blood_group: entry.bloodGroup,
       condition: entry.condition,
@@ -84,7 +108,7 @@ export async function listSubmissions() {
   if (supabase) {
     const { data, error } = await supabase
       .from("submissions")
-      .select("id, name, phone, email, blood_group, condition, batch_type, goal, notes, created_at")
+      .select("id, name, country_iso, country_name, country_code, phone, phone_national, email, blood_group, condition, batch_type, goal, notes, created_at")
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -94,7 +118,11 @@ export async function listSubmissions() {
     return data.map((item) => ({
       id: item.id,
       name: item.name,
+      countryIso: item.country_iso,
+      country: item.country_name,
+      countryCode: item.country_code,
       phone: item.phone,
+      phoneNational: item.phone_national ?? item.phone,
       email: item.email,
       bloodGroup: item.blood_group,
       condition: item.condition,
