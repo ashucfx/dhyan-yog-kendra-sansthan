@@ -470,24 +470,6 @@ This repo may be inside a OneDrive-synced folder locally. In that case, `next bu
 - move the repo outside OneDrive
 - or deploy through Vercel directly
 
-## Recommended Production Improvements
-
-- Add row-level admin auth with Supabase Auth or NextAuth
-- Add search and filters to admin submissions table
-- Add CSV export for leads
-- Add WhatsApp alert integration
-- Add real legal pages
-- Replace placeholder organization contact details
-- Add analytics and conversion tracking
-- Add CAPTCHA or spam protection on the form
-
-## Known Current Notes
-
-- Admin auth is intentionally simple right now and uses `ADMIN_ACCESS_KEY`
-- Local JSON fallback is for development convenience, not long-term production storage
-- Email notifications only work after Resend env variables are configured
-- Some placeholder legal/contact values still need to be replaced with final business details
-
 ## Useful Commands
 
 Install packages:
@@ -513,18 +495,6 @@ Start production server:
 ```powershell
 npm run start
 ```
-
-## Handoff Summary
-
-If a new developer takes over, the most important files to understand first are:
-
-- [page.tsx](/c:/Users/ashut/OneDrive/Desktop/dhyan-yog-kendra-sansthan/app/page.tsx)
-- [site-data.ts](/c:/Users/ashut/OneDrive/Desktop/dhyan-yog-kendra-sansthan/app/content/site-data.ts)
-- [join-form.tsx](/c:/Users/ashut/OneDrive/Desktop/dhyan-yog-kendra-sansthan/app/components/join-form.tsx)
-- [route.ts](/c:/Users/ashut/OneDrive/Desktop/dhyan-yog-kendra-sansthan/app/api/join/route.ts)
-- [submissions.ts](/c:/Users/ashut/OneDrive/Desktop/dhyan-yog-kendra-sansthan/lib/submissions.ts)
-- [page.tsx](/c:/Users/ashut/OneDrive/Desktop/dhyan-yog-kendra-sansthan/app/admin/submissions/page.tsx)
-- [globals.css](/c:/Users/ashut/OneDrive/Desktop/dhyan-yog-kendra-sansthan/app/globals.css)
 
 ## License
 

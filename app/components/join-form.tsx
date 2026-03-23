@@ -39,6 +39,13 @@ const goals = [
   "Build a daily routine"
 ];
 
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function isValidIndianPhone(phone: string) {
+  const normalized = phone.replace(/[^\d+]/g, "");
+  return /^\d{10}$/.test(normalized) || /^91\d{10}$/.test(normalized) || /^\+91\d{10}$/.test(normalized);
+}
+
 export function JoinForm({ conditions }: JoinFormProps) {
   const [form, setForm] = useState<FormState>(initialState);
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
@@ -53,13 +60,46 @@ export function JoinForm({ conditions }: JoinFormProps) {
     setStatus("loading");
     setMessage("");
 
+    const cleanName = form.name.trim().replace(/\s+/g, " ");
+    const cleanEmail = form.email.trim().toLowerCase();
+    const cleanPhone = form.phone.trim();
+
+    if (cleanName.length < 2 || cleanName.length > 80) {
+      setStatus("error");
+      setMessage("Please enter a valid full name.");
+      return;
+    }
+
+    if (!emailRegex.test(cleanEmail)) {
+      setStatus("error");
+      setMessage("Please enter a valid email address.");
+      return;
+    }
+
+    if (!isValidIndianPhone(cleanPhone)) {
+      setStatus("error");
+      setMessage("Please enter a valid 10-digit mobile number.");
+      return;
+    }
+
+    if (form.notes.length > 800) {
+      setStatus("error");
+      setMessage("Notes are too long. Please keep them within 800 characters.");
+      return;
+    }
+
     try {
       const response = await fetch("/api/join", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify(form)
+        body: JSON.stringify({
+          ...form,
+          name: cleanName,
+          email: cleanEmail,
+          phone: cleanPhone
+        })
       });
 
       const result = (await response.json()) as { message?: string };
@@ -81,7 +121,16 @@ export function JoinForm({ conditions }: JoinFormProps) {
     <form className="signup-form" onSubmit={handleSubmit}>
       <label htmlFor="name">
         Your name
-        <input id="name" type="text" placeholder="Enter your name" value={form.name} onChange={(event) => updateField("name", event.target.value)} required />
+        <input
+          id="name"
+          type="text"
+          placeholder="Enter your name"
+          value={form.name}
+          onChange={(event) => updateField("name", event.target.value)}
+          minLength={2}
+          maxLength={80}
+          required
+        />
       </label>
 
       <label htmlFor="phone">
@@ -92,6 +141,9 @@ export function JoinForm({ conditions }: JoinFormProps) {
           placeholder="+91 98765 43210"
           value={form.phone}
           onChange={(event) => updateField("phone", event.target.value)}
+          inputMode="tel"
+          maxLength={16}
+          pattern="^(\+91|91)?[6-9]\d{9}$"
           required
         />
       </label>
@@ -104,6 +156,7 @@ export function JoinForm({ conditions }: JoinFormProps) {
           placeholder="dhyanvedaglobal@gmail.com"
           value={form.email}
           onChange={(event) => updateField("email", event.target.value)}
+          maxLength={120}
           required
         />
       </label>
@@ -172,6 +225,7 @@ export function JoinForm({ conditions }: JoinFormProps) {
           placeholder="Share your symptoms, schedule preference, or anything you want us to know."
           value={form.notes}
           onChange={(event) => updateField("notes", event.target.value)}
+          maxLength={800}
         />
       </label>
 
