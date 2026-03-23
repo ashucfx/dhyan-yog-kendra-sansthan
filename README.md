@@ -104,9 +104,14 @@ Create a `.env.local` file in the project root:
 SUPABASE_URL=https://your-project-id.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
 ADMIN_ACCESS_KEY=change-this-to-a-strong-admin-password
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USER=dhyanvedaglobal@gmail.com
+SMTP_PASS=your-gmail-app-password
 RESEND_API_KEY=re_xxxxxxxxx
 NOTIFICATION_EMAIL_TO=your-email@example.com
-NOTIFICATION_EMAIL_FROM=Dhyan Yog Kendra <alerts@yourdomain.com>
+NOTIFICATION_EMAIL_FROM=dhyanvedaglobal@gmail.com
 ```
 
 Important for this codebase:
@@ -114,6 +119,7 @@ Important for this codebase:
 - Frontend calls `POST /api/join`, and that server route uses Supabase.
 - So `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` are the active keys.
 - `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are only needed if you later build direct frontend Supabase calls.
+- Notification priority is SMTP (Gmail) first, then Resend fallback if SMTP is not configured.
 
 ### Variable Guide
 
@@ -128,6 +134,24 @@ Important for this codebase:
 `ADMIN_ACCESS_KEY`
 - password used for `/admin/submissions`
 
+`SMTP_HOST`
+- SMTP server host
+- for Gmail use `smtp.gmail.com`
+
+`SMTP_PORT`
+- SMTP server port
+- for Gmail SSL use `465`
+
+`SMTP_SECURE`
+- `true` for SSL transport
+
+`SMTP_USER`
+- sender mailbox username
+- for your setup use `dhyanvedaglobal@gmail.com`
+
+`SMTP_PASS`
+- Gmail App Password (not your normal Gmail login password)
+
 `RESEND_API_KEY`
 - API key from Resend
 
@@ -135,7 +159,9 @@ Important for this codebase:
 - organization email address that receives new inquiry alerts
 
 `NOTIFICATION_EMAIL_FROM`
-- verified sender identity configured inside Resend
+- sender shown in alerts
+- for Gmail SMTP keep this as the same Gmail address
+- if using Resend instead, use a verified sender identity/domain
 
 ## Service Websites
 
@@ -247,6 +273,29 @@ These map to:
 - `RESEND_API_KEY`
 - `NOTIFICATION_EMAIL_FROM`
 - `NOTIFICATION_EMAIL_TO`
+
+## Gmail Alert Setup (No Domain Purchase)
+
+If you only need alerts on `dhyanvedaglobal@gmail.com`, use SMTP and skip domain purchase.
+
+1. Open Google account security: `https://myaccount.google.com/security`
+2. Turn on 2-Step Verification
+3. Create an App Password
+4. Put values into env:
+
+```env
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USER=dhyanvedaglobal@gmail.com
+SMTP_PASS=your-16-char-app-password
+NOTIFICATION_EMAIL_TO=dhyanvedaglobal@gmail.com
+NOTIFICATION_EMAIL_FROM=dhyanvedaglobal@gmail.com
+```
+
+Notes:
+- Use the App Password in `SMTP_PASS`, not your normal Gmail password.
+- If SMTP is configured, the app uses SMTP first and Resend only as fallback.
 
 ## Admin Dashboard Access Setup
 

@@ -51,18 +51,17 @@ export async function POST(request: Request) {
     );
   }
 
-  let notificationSent = false;
-  try {
-    notificationSent = await sendSubmissionNotification(entry);
-  } catch {
-    notificationSent = false;
+  const notification = await sendSubmissionNotification(entry);
+  if (!notification.sent) {
+    console.error("Join notification failed:", notification.reason);
   }
 
   return Response.json(
     {
       message: "Your details have been saved.",
       storage,
-      notificationSent
+      notificationSent: notification.sent,
+      notificationReason: notification.sent ? undefined : notification.reason
     },
     { status: 201 }
   );
