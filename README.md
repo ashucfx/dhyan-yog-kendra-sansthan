@@ -109,6 +109,12 @@ NOTIFICATION_EMAIL_TO=your-email@example.com
 NOTIFICATION_EMAIL_FROM=Dhyan Yog Kendra <alerts@yourdomain.com>
 ```
 
+Important for this codebase:
+- The form does **not** write to Supabase directly from the browser.
+- Frontend calls `POST /api/join`, and that server route uses Supabase.
+- So `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` are the active keys.
+- `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are only needed if you later build direct frontend Supabase calls.
+
 ### Variable Guide
 
 `SUPABASE_URL`
