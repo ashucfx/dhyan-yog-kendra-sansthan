@@ -2050,28 +2050,7 @@ textarea:focus-visible {
   }
 
   .floating-cta {
-    display: block;
-    right: 0.75rem;
-    bottom: 0.75rem;
-    z-index: 40;
-  }
-
-  .floating-cta .button,
-  .floating-cta .button-floating {
-    width: auto;
-    max-width: min(86vw, 240px);
-    padding: 0.72rem 1rem;
-    border: 1px solid rgba(122, 31, 23, 0.25);
-    background: rgba(255, 248, 239, 0.96);
-    color: var(--accent-dark);
-    box-shadow: 0 14px 34px rgba(46, 15, 11, 0.28);
-  }
-
-  .floating-cta .button:hover,
-  .floating-cta .button-floating:hover {
-    background: rgba(255, 248, 239, 1);
-    color: var(--accent-dark);
-    transform: translateY(-1px);
+    display: none;
   }
 
   .calendly-inline-frame {
