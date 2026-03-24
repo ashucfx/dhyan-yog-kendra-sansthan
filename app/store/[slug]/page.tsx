@@ -12,38 +12,57 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     notFound();
   }
 
+  const galleryItems = [...(product.gallery ?? [product.image])];
+
   return (
     <SiteShell>
-      <section className="section commerce-detail-layout">
-        <div className="commerce-detail-gallery">
-          {(product.gallery ?? [product.image]).map((image, index) => (
-            <div className={`commerce-detail-image ${index === 0 ? "primary" : ""}`} key={`${image}-${index}`}>
-              <Image src={image} alt={`${product.name} preview ${index + 1}`} fill className="product-image" />
-            </div>
-          ))}
+      <section className="section product-detail-shell">
+        <div className="product-media-column">
+          <div className="product-main-media">
+            <Image src={galleryItems[0] ?? product.image} alt={product.name} fill className="product-image" />
+          </div>
+
+          <div className="product-thumb-grid">
+            {galleryItems.map((image, index) => (
+              <div className="product-thumb-card" key={`${image}-${index}`}>
+                <Image src={image} alt={`${product.name} image ${index + 1}`} fill className="product-image" />
+              </div>
+            ))}
+            {product.videoUrl ? (
+              <div className="product-thumb-card product-video-card">
+                <iframe
+                  title={`${product.name} video`}
+                  src={product.videoUrl}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            ) : null}
+          </div>
         </div>
 
-        <div className="commerce-detail-copy">
-          <p className="eyebrow">Product details</p>
+        <div className="product-info-column">
+          <p className="shopper-category">{product.badge}</p>
           <h1>{product.name}</h1>
-          <p className="lead">{product.description}</p>
-          <div className="commerce-product-head">
-            <span className="entity-chip entity-chip-dark">{product.rating?.toFixed(1) ?? "4.7"} / 5 rating</span>
-            <span className="entity-chip entity-chip-dark">{product.reviewCount ?? 0} customer reviews</span>
+          <div className="product-rating-row">
+            <span>{product.rating?.toFixed(1) ?? "4.7"} / 5</span>
+            <span>{product.reviewCount ?? 0} ratings</span>
+            <span>{(product.reviews ?? []).length} comments</span>
           </div>
           <div className="commerce-price-row">
             <strong>{formatCurrency(product.salePrice, snapshot.settings)}</strong>
             <span>{formatCurrency(product.basePrice, snapshot.settings)}</span>
             <em>{getDiscountPercent(product)}% off</em>
           </div>
+          <p className="lead product-summary">{product.shortDescription}</p>
           <div className="mini-benefits">
             {product.benefits.map((benefit) => (
               <span key={benefit}>{benefit}</span>
             ))}
           </div>
-          <div className="shopper-card-actions">
+          <div className="product-cta-row">
             <Link className="button" href={`/checkout?product=${product.id}`}>
-              Buy This Product
+              Buy Now
             </Link>
             <Link className="button button-secondary" href="/store">
               Back to Store
@@ -52,46 +71,34 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
         </div>
       </section>
 
-      <section className="section commerce-detail-sections page-end-section">
-        <article className="commerce-panel">
-          <div className="commerce-panel-heading">
-            <div>
-              <p className="admin-kicker">Customer reviews</p>
-              <h2>What buyers are saying</h2>
-            </div>
-          </div>
-          <div className="commerce-list">
+      <section className="section product-detail-sections page-end-section">
+        <article className="product-detail-panel">
+          <h2>Description</h2>
+          <p>{product.description}</p>
+        </article>
+
+        <article className="product-detail-panel">
+          <h2>Highlights</h2>
+          <ul className="check-list">
+            {product.benefits.map((benefit) => (
+              <li key={benefit}>{benefit}</li>
+            ))}
+          </ul>
+        </article>
+
+        <article className="product-detail-panel">
+          <h2>Ratings and comments</h2>
+          <div className="product-review-list">
             {(product.reviews ?? []).map((review, index) => (
-              <div className="commerce-status-card" key={`${review.author}-${index}`}>
-                <div>
+              <div className="product-review-card" key={`${review.author}-${index}`}>
+                <div className="product-review-head">
                   <strong>{review.author}</strong>
-                  <p>{review.comment}</p>
+                  <span>{review.rating} / 5</span>
                 </div>
-                <span className="status-pill status-success">{review.rating} / 5</span>
+                <p>{review.comment}</p>
               </div>
             ))}
           </div>
-        </article>
-
-        <article className="commerce-panel">
-          <div className="commerce-panel-heading">
-            <div>
-              <p className="admin-kicker">Product video</p>
-              <h2>Watch before you buy</h2>
-            </div>
-          </div>
-          {product.videoUrl ? (
-            <div className="commerce-video-shell">
-              <iframe
-                title={`${product.name} video`}
-                src={product.videoUrl}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            </div>
-          ) : (
-            <p className="admin-copy">A product video will appear here when added.</p>
-          )}
         </article>
       </section>
     </SiteShell>

@@ -43,61 +43,25 @@ export function StorefrontClient({ products, categories, settings }: StorefrontC
 
   return (
     <>
-      <section className="section commerce-customer-hero">
-        <div className="commerce-customer-copy">
+      <section className="section store-intro-section">
+        <div className="store-intro-copy">
           <p className="eyebrow">Wellness store</p>
-          <h1 className="page-title">Shop trusted wellness essentials chosen to support your daily practice.</h1>
+          <h1 className="store-title">Wellness essentials, herbal support, and home-practice products.</h1>
           <p className="lead">
-            Explore herbal support, self-care kits, yoga accessories, and guided wellness essentials designed to feel
-            calm, useful, and easy to choose.
+            Find the right product quickly, then open the detail page for gallery images, video, ratings, reviews, and
+            a fuller description.
           </p>
-          <div className="hero-pills">
-            <span>Authentic wellness products</span>
-            <span>Comfort-first accessories</span>
-            <span>Home practice support</span>
-          </div>
-        </div>
-        <div className="commerce-promo-banner">
-          <p className="admin-kicker">Featured collection</p>
-          <h2>Curated support for hormones, calm, comfort, and everyday wellness.</h2>
-          <p>Browse premium kits, compare benefits, and open product pages for reviews, video, and full details.</p>
-          <Link className="button" href="/checkout">
-            Start Checkout
-          </Link>
         </div>
       </section>
 
-      <section className="section">
-        <div className="section-heading narrow">
-          <p className="eyebrow">Find products easily</p>
-          <h2>Search, filter by category, and narrow by price before you browse details.</h2>
-        </div>
-        <div className="commerce-filter-panel">
+      <section className="section store-toolbar-section">
+        <div className="store-toolbar">
           <input
             type="search"
-            placeholder="Search products, benefits, or wellness goals"
+            placeholder="Search products"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
-          <div className="filter-row">
-            <button
-              className={`filter-chip ${categoryFilter === "all" ? "active-filter" : ""}`}
-              type="button"
-              onClick={() => setCategoryFilter("all")}
-            >
-              All
-            </button>
-            {categories.map((category) => (
-              <button
-                key={category.id}
-                className={`filter-chip ${categoryFilter === category.slug ? "active-filter" : ""}`}
-                type="button"
-                onClick={() => setCategoryFilter(category.slug)}
-              >
-                {category.name}
-              </button>
-            ))}
-          </div>
           <select value={priceFilter} onChange={(event) => setPriceFilter(event.target.value)}>
             {priceRanges.map((range) => (
               <option key={range.label} value={range.label}>
@@ -105,44 +69,64 @@ export function StorefrontClient({ products, categories, settings }: StorefrontC
               </option>
             ))}
           </select>
+          <Link className="button button-small" href="/checkout">
+            Go to Checkout
+          </Link>
+        </div>
+
+        <div className="filter-row store-filter-row">
+          <button
+            className={`filter-chip ${categoryFilter === "all" ? "active-filter" : ""}`}
+            type="button"
+            onClick={() => setCategoryFilter("all")}
+          >
+            All
+          </button>
+          {categories.map((category) => (
+            <button
+              key={category.id}
+              className={`filter-chip ${categoryFilter === category.slug ? "active-filter" : ""}`}
+              type="button"
+              onClick={() => setCategoryFilter(category.slug)}
+            >
+              {category.name}
+            </button>
+          ))}
         </div>
       </section>
 
-      <section className="section store-section page-end-section">
-        <div className="store-grid commerce-store-grid">
+      <section className="section store-results-section page-end-section">
+        <div className="store-results-head">
+          <p>{filteredProducts.length} products</p>
+        </div>
+        <div className="store-grid shopper-store-grid">
           {filteredProducts.map((product) => (
-            <article className="store-card visual-card product-card shopper-product-card" key={product.id}>
-              <div className="product-image-shell">
-                <Image src={product.image} alt={product.name} fill className="product-image" />
-                <span className="program-badge">{product.badge}</span>
-              </div>
-              <div className="commerce-product-copy">
-                <div className="commerce-product-head">
-                  <span className="entity-chip entity-chip-dark">{getStoreProductCategoryName(product, categories)}</span>
-                  <span className="shopper-rating">
+            <article className="store-card shopper-product-card" key={product.id}>
+              <Link className="shopper-product-link" href={`/store/${product.slug}`}>
+                <div className="shopper-image-frame">
+                  <Image src={product.image} alt={product.name} fill className="product-image" />
+                </div>
+                <div className="shopper-product-copy">
+                  <p className="shopper-category">{getStoreProductCategoryName(product, categories)}</p>
+                  <h3>{product.name}</h3>
+                  <p className="shopper-description">{product.shortDescription}</p>
+                  <p className="shopper-rating">
                     {product.rating?.toFixed(1) ?? "4.7"} / 5 | {product.reviewCount ?? 0} reviews
-                  </span>
+                  </p>
+                  <div className="commerce-price-row">
+                    <strong>{formatStoreCurrency(product.salePrice, settings)}</strong>
+                    <span>{formatStoreCurrency(product.basePrice, settings)}</span>
+                    <em>{getStoreDiscountPercent(product)}% off</em>
+                  </div>
                 </div>
-                <h3>{product.name}</h3>
-                <p>{product.shortDescription}</p>
-                <div className="commerce-price-row">
-                  <strong>{formatStoreCurrency(product.salePrice, settings)}</strong>
-                  <span>{formatStoreCurrency(product.basePrice, settings)}</span>
-                  <em>{getStoreDiscountPercent(product)}% off</em>
-                </div>
-                <div className="mini-benefits">
-                  {product.benefits.slice(0, 3).map((benefit) => (
-                    <span key={benefit}>{benefit}</span>
-                  ))}
-                </div>
-                <div className="shopper-card-actions">
-                  <Link className="card-cta" href={`/store/${product.slug}`}>
-                    View Details
-                  </Link>
-                  <Link className="button button-secondary button-small" href={`/checkout?product=${product.id}`}>
-                    Buy Now
-                  </Link>
-                </div>
+              </Link>
+              <div className="shopper-card-actions">
+                <Link className="card-cta" href={`/store/${product.slug}`}>
+                  View Details
+                </Link>
+                <Link className="button button-secondary button-small" href={`/checkout?product=${product.id}`}>
+                  Buy
+                </Link>
               </div>
             </article>
           ))}
