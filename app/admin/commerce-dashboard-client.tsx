@@ -121,6 +121,35 @@ export function CommerceDashboardClient({ initialSnapshot }: CommerceDashboardCl
     });
   }, [productFilter, productQuery, snapshot.products]);
 
+  async function handleImageUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setBusyAction("product-image-upload");
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const response = await fetch("/api/admin/commerce/products/upload", {
+        method: "POST",
+        body: formData
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || "Upload failed.");
+
+      setProductForm((current) => ({
+        ...current,
+        image: result.url,
+        gallery: current.gallery.includes(result.url) ? current.gallery : [...current.gallery, result.url]
+      }));
+      notify("success", "Image uploaded successfully.");
+    } catch (error) {
+      notify("error", error instanceof Error ? error.message : "Unable to upload image.");
+    } finally {
+      setBusyAction("");
+    }
+  }
+
   async function saveProduct() {
     setBusyAction("product-save");
     try {
@@ -332,6 +361,23 @@ export function CommerceDashboardClient({ initialSnapshot }: CommerceDashboardCl
               value={productForm.image}
               onChange={(event) => setProductForm((current) => ({ ...current, image: event.target.value }))}
             />
+            <div className="admin-upload-field">
+              <label className="admin-upload-button">
+                {busyAction === "product-image-upload" ? "Uploading..." : "Upload New Image"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  disabled={busyAction === "product-image-upload"}
+                  hidden
+                />
+              </label>
+              {productForm.image ? (
+                <div className="admin-thumbnail">
+                  <img src={productForm.image} alt="Preview" width={40} height={40} style={{ objectFit: "cover", borderRadius: "4px" }} />
+                </div>
+              ) : null}
+            </div>
             <input
               placeholder="Gallery image paths comma separated"
               value={productForm.gallery.join(", ")}
