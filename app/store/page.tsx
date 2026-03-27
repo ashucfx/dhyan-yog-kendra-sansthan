@@ -4,8 +4,9 @@ import { StorefrontClient } from "./storefront-client";
 
 export default async function StorePage() {
   const snapshot = await loadCommerceSnapshot();
+  const activeProducts = snapshot.products.filter((product) => product.active);
   const reviewSummaryByProduct = Object.fromEntries(
-    snapshot.products.map((product) => {
+    activeProducts.map((product) => {
       const summary = getProductReviews(snapshot, product.id);
       return [product.id, { rating: summary.rating, reviewCount: summary.reviewCount }];
     })
@@ -14,7 +15,7 @@ export default async function StorePage() {
   return (
     <SiteShell>
       <StorefrontClient
-        products={snapshot.products}
+        products={activeProducts}
         categories={snapshot.categories}
         settings={snapshot.settings}
         reviewSummaryByProduct={reviewSummaryByProduct}

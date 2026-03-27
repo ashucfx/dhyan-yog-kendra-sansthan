@@ -6,7 +6,7 @@ import { ProductDetailClient } from "./product-detail-client";
 export default async function ProductDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const snapshot = await loadCommerceSnapshot();
-  const product = snapshot.products.find((item) => item.slug === slug) ?? (await getStoreProduct(slug));
+  const product = snapshot.products.find((item) => item.slug === slug && item.active) ?? (await getStoreProduct(slug));
 
   if (!product) {
     notFound();

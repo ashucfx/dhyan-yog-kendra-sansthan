@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { SiteShell } from "../components/site-shell";
 import { getAuthenticatedUser } from "@/lib/auth-user";
-import { listOrdersForUser } from "@/lib/commerce";
+import { getUserProfile, listAddressesForUser, listOrdersForUser } from "@/lib/commerce";
 import { AccountClient } from "./account-client";
 
 export default async function AccountPage() {
@@ -11,7 +11,15 @@ export default async function AccountPage() {
     redirect("/auth/sign-in?redirectTo=/account");
   }
 
-  const orders = await listOrdersForUser(user.id);
+  const [orders, profile, addresses] = await Promise.all([
+    listOrdersForUser(user.id),
+    getUserProfile(user.id, {
+      email: user.email,
+      name: user.name,
+      phone: user.phone
+    }),
+    listAddressesForUser(user.id)
+  ]);
 
   return (
     <SiteShell>
@@ -20,17 +28,16 @@ export default async function AccountPage() {
           <div className="admin-header">
             <div>
               <p className="eyebrow">My account</p>
-              <h1>{user.name || user.email}</h1>
+              <h1>{profile.fullName || user.name || user.email}</h1>
               <p className="admin-copy">
-                {user.email}
-                {user.phone ? ` | ${user.phone}` : ""}
+                {profile.email}
+                {profile.phone ? ` | ${profile.phone}` : ""}
               </p>
             </div>
             <div className="admin-actions">
               <Link className="button button-secondary button-small" href="/account/orders">
                 My Orders
               </Link>
-              <AccountClient />
             </div>
           </div>
 
@@ -42,10 +49,17 @@ export default async function AccountPage() {
             </article>
             <article className="admin-insight-card">
               <p className="admin-kicker">Account email</p>
-              <strong>{user.email}</strong>
+              <strong>{profile.email}</strong>
               <span>Used for order confirmations and sign-in.</span>
             </article>
+            <article className="admin-insight-card">
+              <p className="admin-kicker">Saved addresses</p>
+              <strong>{addresses.length}</strong>
+              <span>Ready for faster checkout and repeat orders.</span>
+            </article>
           </section>
+
+          <AccountClient initialProfile={profile} initialAddresses={addresses} />
         </section>
       </main>
     </SiteShell>

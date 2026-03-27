@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { SiteShell } from "@/app/components/site-shell";
 import { getAuthenticatedUser } from "@/lib/auth-user";
@@ -33,6 +34,9 @@ export default async function OrdersPage() {
                   <div className="commerce-list-side">
                     <span>{formatCurrency(order.total, snapshot.settings)}</span>
                     <span className="status-pill status-warning">{order.status}</span>
+                    <Link className="button button-secondary button-small" href={`/account/orders/${order.id}`}>
+                      View Order
+                    </Link>
                   </div>
                 </div>
               ))

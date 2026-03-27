@@ -1,5 +1,10 @@
+import { Suspense } from "react";
 import { AuthForm } from "../auth-form";
 
 export default function SignUpPage() {
-  return <AuthForm mode="sign-up" />;
+  return (
+    <Suspense fallback={<div className="loading-state">Loading...</div>}>
+      <AuthForm mode="sign-up" />
+    </Suspense>
+  );
 }

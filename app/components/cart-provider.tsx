@@ -3,71 +3,150 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 type CartItem = {
+  id?: string;
   productId: string;
   quantity: number;
 };
 
+type CartActionResult = {
+  ok: boolean;
+  requiresAuth?: boolean;
+  message?: string;
+};
+
 type CartContextValue = {
   items: CartItem[];
-  addItem: (productId: string, quantity?: number) => void;
-  removeItem: (productId: string) => void;
-  updateQuantity: (productId: string, quantity: number) => void;
-  clearCart: () => void;
+  loading: boolean;
+  authenticated: boolean;
+  addItem: (productId: string, quantity?: number) => Promise<CartActionResult>;
+  removeItem: (productId: string) => Promise<CartActionResult>;
+  updateQuantity: (productId: string, quantity: number) => Promise<CartActionResult>;
+  clearCart: () => Promise<CartActionResult>;
+  refreshCart: () => Promise<void>;
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
-const storageKey = "dhyan_store_cart";
+
+async function parseResponse(response: Response) {
+  const payload = (await response.json().catch(() => ({}))) as {
+    items?: CartItem[];
+    message?: string;
+  };
+
+  return payload;
+}
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [authenticated, setAuthenticated] = useState(false);
 
-  useEffect(() => {
-    const stored = window.localStorage.getItem(storageKey);
-    if (!stored) {
-      return;
-    }
-
+  async function refreshCart() {
+    setLoading(true);
     try {
-      const parsed = JSON.parse(stored) as CartItem[];
-      setItems(parsed);
-    } catch {
-      window.localStorage.removeItem(storageKey);
+      const response = await fetch("/api/cart", { cache: "no-store" });
+      const payload = await parseResponse(response);
+      if (response.status === 401) {
+        setItems([]);
+        setAuthenticated(false);
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(payload.message || "Unable to load cart.");
+      }
+
+      setItems(payload.items ?? []);
+      setAuthenticated(true);
+    } finally {
+      setLoading(false);
     }
-  }, []);
+  }
 
   useEffect(() => {
-    window.localStorage.setItem(storageKey, JSON.stringify(items));
-  }, [items]);
+    void refreshCart();
+  }, []);
 
   const value = useMemo<CartContextValue>(
     () => ({
       items,
-      addItem(productId, quantity = 1) {
-        setItems((current) => {
-          const existing = current.find((item) => item.productId === productId);
-          if (!existing) {
-            return [...current, { productId, quantity }];
-          }
-          return current.map((item) =>
-            item.productId === productId ? { ...item, quantity: item.quantity + quantity } : item
-          );
+      loading,
+      authenticated,
+      async addItem(productId, quantity = 1) {
+        const response = await fetch("/api/cart", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ productId, quantity })
         });
+        const payload = await parseResponse(response);
+        if (response.status === 401) {
+          setAuthenticated(false);
+          return { ok: false, requiresAuth: true, message: payload.message };
+        }
+        if (!response.ok) {
+          return { ok: false, message: payload.message || "Unable to add to cart." };
+        }
+        setItems(payload.items ?? []);
+        setAuthenticated(true);
+        return { ok: true };
       },
-      removeItem(productId) {
-        setItems((current) => current.filter((item) => item.productId !== productId));
+      async removeItem(productId) {
+        const response = await fetch("/api/cart", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ productId })
+        });
+        const payload = await parseResponse(response);
+        if (response.status === 401) {
+          setAuthenticated(false);
+          return { ok: false, requiresAuth: true, message: payload.message };
+        }
+        if (!response.ok) {
+          return { ok: false, message: payload.message || "Unable to remove this item." };
+        }
+        setItems(payload.items ?? []);
+        setAuthenticated(true);
+        return { ok: true };
       },
-      updateQuantity(productId, quantity) {
-        setItems((current) =>
-          current
-            .map((item) => (item.productId === productId ? { ...item, quantity } : item))
-            .filter((item) => item.quantity > 0)
-        );
+      async updateQuantity(productId, quantity) {
+        const response = await fetch("/api/cart", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ productId, quantity })
+        });
+        const payload = await parseResponse(response);
+        if (response.status === 401) {
+          setAuthenticated(false);
+          return { ok: false, requiresAuth: true, message: payload.message };
+        }
+        if (!response.ok) {
+          return { ok: false, message: payload.message || "Unable to update cart." };
+        }
+        setItems(payload.items ?? []);
+        setAuthenticated(true);
+        return { ok: true };
       },
-      clearCart() {
-        setItems([]);
-      }
+      async clearCart() {
+        const response = await fetch("/api/cart", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({})
+        });
+        const payload = await parseResponse(response);
+        if (response.status === 401) {
+          setAuthenticated(false);
+          return { ok: false, requiresAuth: true, message: payload.message };
+        }
+        if (!response.ok) {
+          return { ok: false, message: payload.message || "Unable to clear cart." };
+        }
+        setItems(payload.items ?? []);
+        setAuthenticated(true);
+        return { ok: true };
+      },
+      refreshCart
     }),
-    [items]
+    [authenticated, items, loading]
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

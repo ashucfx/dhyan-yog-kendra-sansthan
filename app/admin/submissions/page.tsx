@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { isAdminAuthenticated, isAdminKeyConfigured } from "@/lib/admin-auth";
 import { getStorageLabel, listSubmissions } from "@/lib/submissions";
 import { DashboardClient } from "./dashboard-client";
@@ -68,7 +69,9 @@ export default async function AdminSubmissionsPage({
   return (
     <main className="admin-page">
       <section className="admin-shell">
-        <DashboardClient initialSubmissions={submissions} storageLabel={storageLabel} initialError={dashboardError} />
+        <Suspense fallback={<div className="loading-state">Loading submissions...</div>}>
+          <DashboardClient initialSubmissions={submissions} storageLabel={storageLabel} initialError={dashboardError} />
+        </Suspense>
       </section>
     </main>
   );

@@ -43,6 +43,7 @@ export type CommerceProduct = {
   salePrice: number;
   stock: number;
   featured: boolean;
+  active: boolean;
   videoUrl?: string;
   benefits: string[];
 };
@@ -121,6 +122,38 @@ export type CommerceOrderItem = {
   totalPrice: number;
 };
 
+export type CommerceProfile = {
+  id: string;
+  email: string;
+  fullName: string;
+  phone: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CommerceAddress = {
+  id: string;
+  userId: string;
+  label: string;
+  fullName: string;
+  phone: string;
+  line1: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+  createdAt: string;
+};
+
+export type CommerceCartItem = {
+  id: string;
+  userId: string;
+  productId: string;
+  quantity: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type CommerceSnapshot = {
   settings: CommerceSettings;
   categories: CommerceCategory[];
@@ -149,6 +182,7 @@ export type ProductInput = {
   salePrice: number;
   stock: number;
   featured: boolean;
+  active: boolean;
   videoUrl: string;
   benefits: string[];
 };
@@ -196,6 +230,13 @@ export type CreateOrderInput = {
 };
 
 const commerceDataFile = join(process.cwd(), "data", "commerce.json");
+const commerceUserDataFile = join(process.cwd(), "data", "commerce-users.json");
+
+type LocalUserState = {
+  profiles: CommerceProfile[];
+  addresses: CommerceAddress[];
+  cartItems: CommerceCartItem[];
+};
 
 function getSupabaseClient() {
   const url = process.env.SUPABASE_URL;
@@ -218,6 +259,10 @@ async function readLocalSnapshot() {
   const snapshot = JSON.parse(content) as Omit<CommerceSnapshot, "source">;
   return {
     ...snapshot,
+    products: (snapshot.products ?? []).map((product) => ({
+      ...product,
+      active: product.active ?? true
+    })),
     source: "local" as const
   };
 }
@@ -225,6 +270,29 @@ async function readLocalSnapshot() {
 async function writeLocalSnapshot(snapshot: Omit<CommerceSnapshot, "source">) {
   const { writeFile } = await import("node:fs/promises");
   await writeFile(commerceDataFile, JSON.stringify(snapshot, null, 2), "utf8");
+}
+
+async function readLocalUserState(): Promise<LocalUserState> {
+  try {
+    const content = await readFile(commerceUserDataFile, "utf8");
+    const parsed = JSON.parse(content) as Partial<LocalUserState>;
+    return {
+      profiles: parsed.profiles ?? [],
+      addresses: parsed.addresses ?? [],
+      cartItems: parsed.cartItems ?? []
+    };
+  } catch {
+    return {
+      profiles: [],
+      addresses: [],
+      cartItems: []
+    };
+  }
+}
+
+async function writeLocalUserState(state: LocalUserState) {
+  const { writeFile } = await import("node:fs/promises");
+  await writeFile(commerceUserDataFile, JSON.stringify(state, null, 2), "utf8");
 }
 
 async function readSupabaseSnapshot(): Promise<CommerceSnapshot | null> {
@@ -241,7 +309,7 @@ async function readSupabaseSnapshot(): Promise<CommerceSnapshot | null> {
         supabase
           .from("products")
           .select(
-            "id, slug, name, sku, category_slug, short_description, description, badge, image_url, gallery, base_price, sale_price, stock, featured, video_url, benefits"
+            "id, slug, name, sku, category_slug, short_description, description, badge, image_url, gallery, base_price, sale_price, stock, featured, active, video_url, benefits"
           )
           .order("featured", { ascending: false })
           .order("name"),
@@ -253,7 +321,7 @@ async function readSupabaseSnapshot(): Promise<CommerceSnapshot | null> {
         supabase
           .from("orders")
           .select(
-            "id, user_id, customer_name, customer_email, status, fulfillment_status, payment_provider, payment_status, subtotal, discount, shipping, total, created_at"
+            "id, user_id, customer_name, customer_email, customer_phone, status, fulfillment_status, payment_provider, payment_status, subtotal, discount, shipping, total, coupon_code, shipping_address, created_at"
           )
           .order("created_at", { ascending: false })
           .limit(12),
@@ -327,6 +395,7 @@ async function readSupabaseSnapshot(): Promise<CommerceSnapshot | null> {
         salePrice: item.sale_price,
         stock: item.stock,
         featured: item.featured,
+        active: item.active ?? true,
         videoUrl: item.video_url ?? "",
         benefits: Array.isArray(item.benefits) ? item.benefits : []
       })),
@@ -353,7 +422,7 @@ async function readSupabaseSnapshot(): Promise<CommerceSnapshot | null> {
         userId: item.user_id ?? undefined,
         customerName: item.customer_name,
         customerEmail: item.customer_email,
-        customerPhone: undefined,
+        customerPhone: item.customer_phone ?? undefined,
         status: item.status,
         fulfillmentStatus: item.fulfillment_status,
         paymentProvider: item.payment_provider,
@@ -362,8 +431,16 @@ async function readSupabaseSnapshot(): Promise<CommerceSnapshot | null> {
         discount: item.discount,
         shipping: item.shipping,
         total: item.total,
-        couponCode: undefined,
-        shippingAddress: undefined,
+        couponCode: item.coupon_code ?? undefined,
+        shippingAddress: item.shipping_address
+          ? {
+              line1: item.shipping_address.line1 ?? "",
+              city: item.shipping_address.city ?? "",
+              state: item.shipping_address.state ?? "",
+              postalCode: item.shipping_address.postalCode ?? item.shipping_address.postal_code ?? "",
+              country: item.shipping_address.country ?? "India"
+            }
+          : undefined,
         createdAt: item.created_at
       })),
       orderItems: (orderItemsResult.data ?? []).map((item) => ({
@@ -410,12 +487,12 @@ export async function loadCommerceSnapshot() {
 
 export async function listStoreProducts() {
   const snapshot = await loadCommerceSnapshot();
-  return snapshot.products;
+  return snapshot.products.filter((product) => product.active);
 }
 
 export async function getStoreProduct(slug: string) {
   const snapshot = await loadCommerceSnapshot();
-  return snapshot.products.find((product) => product.slug === slug) ?? null;
+  return snapshot.products.find((product) => product.slug === slug && product.active) ?? null;
 }
 
 function sanitizeSlug(value: string) {
@@ -480,6 +557,7 @@ export async function upsertProduct(input: ProductInput) {
     salePrice: sanitizeCurrency(input.salePrice),
     stock: sanitizeCurrency(input.stock),
     featured: Boolean(input.featured),
+    active: Boolean(input.active),
     videoUrl: input.videoUrl.trim(),
     benefits: ensureBenefits(input.benefits)
   } satisfies CommerceProduct;
@@ -502,9 +580,9 @@ export async function upsertProduct(input: ProductInput) {
       sale_price: payload.salePrice,
       stock: payload.stock,
       featured: payload.featured,
+      active: payload.active,
       video_url: payload.videoUrl || null,
-      benefits: payload.benefits,
-      active: true
+      benefits: payload.benefits
     });
 
     if (error) {
@@ -545,6 +623,10 @@ export async function deleteProduct(productId: string) {
   local.orderItems = local.orderItems.filter((item) => item.productId !== productId);
   local.productReviews = local.productReviews.filter((item) => item.productId !== productId);
   await writeLocalSnapshot(local);
+
+  const userState = await readLocalUserState();
+  userState.cartItems = userState.cartItems.filter((item) => item.productId !== productId);
+  await writeLocalUserState(userState);
 }
 
 export async function createProductReview(input: {
@@ -921,6 +1003,381 @@ export async function createShipmentRecord(orderId: string, partner: string, awb
 export async function listOrdersForUser(userId: string) {
   const snapshot = await loadCommerceSnapshot();
   return snapshot.orders.filter((order) => order.userId === userId).sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+}
+
+export async function getUserProfile(
+  userId: string,
+  fallback: {
+    email: string;
+    name?: string;
+    phone?: string;
+  }
+) {
+  const supabase = getSupabaseClient();
+  const timestamp = new Date().toISOString();
+
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("profiles")
+      .upsert(
+        {
+          id: userId,
+          email: fallback.email.trim().toLowerCase(),
+          full_name: sanitizeText(fallback.name ?? ""),
+          phone: sanitizeText(fallback.phone ?? ""),
+          updated_at: timestamp
+        },
+        { onConflict: "id" }
+      )
+      .select("id, email, full_name, phone, created_at, updated_at")
+      .single();
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return {
+      id: data.id,
+      email: data.email,
+      fullName: data.full_name ?? "",
+      phone: data.phone ?? "",
+      createdAt: data.created_at,
+      updatedAt: data.updated_at
+    } satisfies CommerceProfile;
+  }
+
+  const state = await readLocalUserState();
+  const existing = state.profiles.find((profile) => profile.id === userId);
+  if (existing) {
+    return existing;
+  }
+
+  const profile: CommerceProfile = {
+    id: userId,
+    email: fallback.email.trim().toLowerCase(),
+    fullName: sanitizeText(fallback.name ?? ""),
+    phone: sanitizeText(fallback.phone ?? ""),
+    createdAt: timestamp,
+    updatedAt: timestamp
+  };
+  state.profiles.unshift(profile);
+  await writeLocalUserState(state);
+  return profile;
+}
+
+export async function upsertUserProfile(input: {
+  userId: string;
+  email: string;
+  fullName: string;
+  phone: string;
+}) {
+  const profile: CommerceProfile = {
+    id: input.userId,
+    email: input.email.trim().toLowerCase(),
+    fullName: sanitizeText(input.fullName),
+    phone: sanitizeText(input.phone),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+  const supabase = getSupabaseClient();
+
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("profiles")
+      .upsert(
+        {
+          id: profile.id,
+          email: profile.email,
+          full_name: profile.fullName,
+          phone: profile.phone,
+          updated_at: profile.updatedAt
+        },
+        { onConflict: "id" }
+      )
+      .select("id, email, full_name, phone, created_at, updated_at")
+      .single();
+    if (error) {
+      throw new Error(error.message);
+    }
+    return {
+      id: data.id,
+      email: data.email,
+      fullName: data.full_name ?? "",
+      phone: data.phone ?? "",
+      createdAt: data.created_at,
+      updatedAt: data.updated_at
+    } satisfies CommerceProfile;
+  }
+
+  const state = await readLocalUserState();
+  const existingIndex = state.profiles.findIndex((item) => item.id === profile.id);
+  if (existingIndex >= 0) {
+    profile.createdAt = state.profiles[existingIndex].createdAt;
+    state.profiles[existingIndex] = profile;
+  } else {
+    state.profiles.unshift(profile);
+  }
+  await writeLocalUserState(state);
+  return profile;
+}
+
+export async function listAddressesForUser(userId: string) {
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("addresses")
+      .select("id, user_id, label, full_name, phone, line1, city, state, postal_code, country, created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+    if (error) {
+      throw new Error(error.message);
+    }
+    return (data ?? []).map(
+      (item) =>
+        ({
+          id: item.id,
+          userId: item.user_id,
+          label: item.label ?? "",
+          fullName: item.full_name,
+          phone: item.phone,
+          line1: item.line1,
+          city: item.city,
+          state: item.state,
+          postalCode: item.postal_code,
+          country: item.country,
+          createdAt: item.created_at
+        }) satisfies CommerceAddress
+    );
+  }
+
+  const state = await readLocalUserState();
+  return state.addresses.filter((address) => address.userId === userId).sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+}
+
+export async function saveAddress(input: {
+  id?: string;
+  userId: string;
+  label: string;
+  fullName: string;
+  phone: string;
+  line1: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+}) {
+  const address: CommerceAddress = {
+    id: input.id || crypto.randomUUID(),
+    userId: input.userId,
+    label: sanitizeText(input.label),
+    fullName: sanitizeText(input.fullName),
+    phone: sanitizeText(input.phone),
+    line1: sanitizeText(input.line1),
+    city: sanitizeText(input.city),
+    state: sanitizeText(input.state),
+    postalCode: sanitizeText(input.postalCode),
+    country: sanitizeText(input.country) || "India",
+    createdAt: new Date().toISOString()
+  };
+  const supabase = getSupabaseClient();
+
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("addresses")
+      .upsert(
+        {
+          id: address.id,
+          user_id: address.userId,
+          label: address.label || null,
+          full_name: address.fullName,
+          phone: address.phone,
+          line1: address.line1,
+          city: address.city,
+          state: address.state,
+          postal_code: address.postalCode,
+          country: address.country
+        },
+        { onConflict: "id" }
+      )
+      .select("id, user_id, label, full_name, phone, line1, city, state, postal_code, country, created_at")
+      .single();
+    if (error) {
+      throw new Error(error.message);
+    }
+    return {
+      id: data.id,
+      userId: data.user_id,
+      label: data.label ?? "",
+      fullName: data.full_name,
+      phone: data.phone,
+      line1: data.line1,
+      city: data.city,
+      state: data.state,
+      postalCode: data.postal_code,
+      country: data.country,
+      createdAt: data.created_at
+    } satisfies CommerceAddress;
+  }
+
+  const state = await readLocalUserState();
+  const existingIndex = state.addresses.findIndex((item) => item.id === address.id && item.userId === address.userId);
+  if (existingIndex >= 0) {
+    address.createdAt = state.addresses[existingIndex].createdAt;
+    state.addresses[existingIndex] = address;
+  } else {
+    state.addresses.unshift(address);
+  }
+  await writeLocalUserState(state);
+  return address;
+}
+
+export async function deleteAddress(addressId: string, userId: string) {
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    const { error } = await supabase.from("addresses").delete().eq("id", addressId).eq("user_id", userId);
+    if (error) {
+      throw new Error(error.message);
+    }
+    return;
+  }
+
+  const state = await readLocalUserState();
+  state.addresses = state.addresses.filter((address) => !(address.id === addressId && address.userId === userId));
+  await writeLocalUserState(state);
+}
+
+export async function listCartItemsForUser(userId: string) {
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("cart_items")
+      .select("id, user_id, product_id, quantity, created_at, updated_at")
+      .eq("user_id", userId)
+      .order("updated_at", { ascending: false });
+    if (error) {
+      throw new Error(error.message);
+    }
+    return (data ?? []).map(
+      (item) =>
+        ({
+          id: item.id,
+          userId: item.user_id,
+          productId: item.product_id,
+          quantity: item.quantity,
+          createdAt: item.created_at,
+          updatedAt: item.updated_at
+        }) satisfies CommerceCartItem
+    );
+  }
+
+  const state = await readLocalUserState();
+  return state.cartItems.filter((item) => item.userId === userId).sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+}
+
+export async function setCartItemQuantity(userId: string, productId: string, quantity: number) {
+  const normalizedQuantity = Math.max(0, Math.round(quantity));
+  const timestamp = new Date().toISOString();
+  const supabase = getSupabaseClient();
+
+  if (normalizedQuantity === 0) {
+    await removeCartItem(userId, productId);
+    return null;
+  }
+
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("cart_items")
+      .upsert(
+        {
+          user_id: userId,
+          product_id: productId,
+          quantity: normalizedQuantity,
+          updated_at: timestamp
+        },
+        { onConflict: "user_id,product_id" }
+      )
+      .select("id, user_id, product_id, quantity, created_at, updated_at")
+      .single();
+    if (error) {
+      throw new Error(error.message);
+    }
+    return {
+      id: data.id,
+      userId: data.user_id,
+      productId: data.product_id,
+      quantity: data.quantity,
+      createdAt: data.created_at,
+      updatedAt: data.updated_at
+    } satisfies CommerceCartItem;
+  }
+
+  const state = await readLocalUserState();
+  const existingIndex = state.cartItems.findIndex((item) => item.userId === userId && item.productId === productId);
+  if (existingIndex >= 0) {
+    state.cartItems[existingIndex] = {
+      ...state.cartItems[existingIndex],
+      quantity: normalizedQuantity,
+      updatedAt: timestamp
+    };
+    await writeLocalUserState(state);
+    return state.cartItems[existingIndex];
+  }
+
+  const item: CommerceCartItem = {
+    id: crypto.randomUUID(),
+    userId,
+    productId,
+    quantity: normalizedQuantity,
+    createdAt: timestamp,
+    updatedAt: timestamp
+  };
+  state.cartItems.unshift(item);
+  await writeLocalUserState(state);
+  return item;
+}
+
+export async function removeCartItem(userId: string, productId: string) {
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    const { error } = await supabase.from("cart_items").delete().eq("user_id", userId).eq("product_id", productId);
+    if (error) {
+      throw new Error(error.message);
+    }
+    return;
+  }
+
+  const state = await readLocalUserState();
+  state.cartItems = state.cartItems.filter((item) => !(item.userId === userId && item.productId === productId));
+  await writeLocalUserState(state);
+}
+
+export async function clearCartForUser(userId: string) {
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    const { error } = await supabase.from("cart_items").delete().eq("user_id", userId);
+    if (error) {
+      throw new Error(error.message);
+    }
+    return;
+  }
+
+  const state = await readLocalUserState();
+  state.cartItems = state.cartItems.filter((item) => item.userId !== userId);
+  await writeLocalUserState(state);
+}
+
+export async function getOrderDetailForUser(userId: string, orderId: string) {
+  const snapshot = await loadCommerceSnapshot();
+  const order = snapshot.orders.find((item) => item.id === orderId && item.userId === userId) ?? null;
+  if (!order) {
+    return null;
+  }
+
+  return {
+    order,
+    items: snapshot.orderItems.filter((item) => item.orderId === orderId),
+    shipment: snapshot.shipments.find((item) => item.orderId === orderId) ?? null
+  };
 }
 
 export function formatCurrency(amount: number, settings: CommerceSettings) {

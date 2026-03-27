@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useCart } from "./cart-provider";
 
@@ -14,10 +15,17 @@ export function AddToCartButton({
   compact?: boolean;
 }) {
   const { addItem } = useCart();
+  const pathname = usePathname();
   const [added, setAdded] = useState(false);
 
-  function handleAdd() {
-    addItem(productId, 1);
+  async function handleAdd() {
+    const result = await addItem(productId, 1);
+    if (!result.ok) {
+      if (result.requiresAuth) {
+        window.location.href = `/auth/sign-in?redirectTo=${encodeURIComponent(pathname || checkoutHref)}`;
+      }
+      return;
+    }
     setAdded(true);
     window.setTimeout(() => setAdded(false), 1600);
   }

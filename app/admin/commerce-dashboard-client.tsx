@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useState } from "react";
+import { startTransition, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { CommerceSnapshot, CouponInput, OfferInput, ProductInput } from "@/lib/commerce";
 
@@ -27,6 +27,7 @@ const emptyProduct: ProductInput = {
   salePrice: 0,
   stock: 0,
   featured: false,
+  active: true,
   videoUrl: "",
   benefits: []
 };
@@ -73,6 +74,8 @@ export function CommerceDashboardClient({ initialSnapshot }: CommerceDashboardCl
   const [offerForm, setOfferForm] = useState<OfferInput>(emptyOffer);
   const [couponForm, setCouponForm] = useState<CouponInput>(emptyCoupon);
   const [busyAction, setBusyAction] = useState("");
+  const [productQuery, setProductQuery] = useState("");
+  const [productFilter, setProductFilter] = useState<"all" | "active" | "inactive" | "featured">("all");
 
   function notify(tone: "success" | "error", message: string) {
     setToast({ tone, message });
@@ -95,10 +98,28 @@ export function CommerceDashboardClient({ initialSnapshot }: CommerceDashboardCl
       salePrice: product.salePrice,
       stock: product.stock,
       featured: product.featured,
+      active: product.active,
       videoUrl: product.videoUrl ?? "",
       benefits: product.benefits
     });
   }
+
+  const filteredProducts = useMemo(() => {
+    return snapshot.products.filter((product) => {
+      const matchesQuery =
+        !productQuery ||
+        [product.name, product.sku, product.slug].some((value) => value.toLowerCase().includes(productQuery.toLowerCase()));
+      const matchesFilter =
+        productFilter === "all"
+          ? true
+          : productFilter === "featured"
+            ? product.featured
+            : productFilter === "active"
+              ? product.active
+              : !product.active;
+      return matchesQuery && matchesFilter;
+    });
+  }, [productFilter, productQuery, snapshot.products]);
 
   async function saveProduct() {
     setBusyAction("product-save");
@@ -367,6 +388,14 @@ export function CommerceDashboardClient({ initialSnapshot }: CommerceDashboardCl
               />
               Featured
             </label>
+            <label className="admin-checkbox">
+              <input
+                type="checkbox"
+                checked={productForm.active}
+                onChange={(event) => setProductForm((current) => ({ ...current, active: event.target.checked }))}
+              />
+              Visible on store
+            </label>
             <textarea
               placeholder="Description"
               value={productForm.description}
@@ -381,13 +410,22 @@ export function CommerceDashboardClient({ initialSnapshot }: CommerceDashboardCl
               Reset
             </button>
           </div>
+          <div className="admin-form-grid admin-form-grid-compact">
+            <input placeholder="Search products" value={productQuery} onChange={(event) => setProductQuery(event.target.value)} />
+            <select value={productFilter} onChange={(event) => setProductFilter(event.target.value as typeof productFilter)}>
+              <option value="all">All products</option>
+              <option value="active">Visible</option>
+              <option value="inactive">Hidden</option>
+              <option value="featured">Featured</option>
+            </select>
+          </div>
           <div className="commerce-list">
-            {snapshot.products.map((product) => (
+            {filteredProducts.map((product) => (
               <div className="commerce-list-item" key={product.id}>
                 <div>
                   <strong>{product.name}</strong>
                   <p>
-                    {product.sku} | Stock {product.stock}
+                    {product.sku} | Stock {product.stock} | {product.active ? "Visible" : "Hidden"}
                   </p>
                 </div>
                 <div className="commerce-list-side">

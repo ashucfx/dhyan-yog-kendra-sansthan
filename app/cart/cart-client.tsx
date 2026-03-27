@@ -8,7 +8,7 @@ import { formatStoreCurrency } from "@/lib/commerce-ui";
 import { useCart } from "@/app/components/cart-provider";
 
 export function CartClient({ products, settings }: { products: CommerceProduct[]; settings: CommerceSettings }) {
-  const { items, removeItem, updateQuantity } = useCart();
+  const { items, loading, authenticated, removeItem, updateQuantity } = useCart();
 
   const cartItems = useMemo(
     () =>
@@ -32,7 +32,16 @@ export function CartClient({ products, settings }: { products: CommerceProduct[]
         </div>
 
         <div className="commerce-list">
-          {cartItems.length ? (
+          {loading ? (
+            <p className="admin-copy">Loading your cart...</p>
+          ) : !authenticated ? (
+            <div className="commerce-empty-state">
+              <p className="admin-copy">Sign in to save products to your cart across devices.</p>
+              <Link className="button button-small" href="/auth/sign-in?redirectTo=/cart">
+                Sign In to Continue
+              </Link>
+            </div>
+          ) : cartItems.length ? (
             cartItems.map(({ product, quantity }) => (
               <div className="commerce-list-item" key={product.id}>
                 <div className="cart-line">
@@ -45,14 +54,14 @@ export function CartClient({ products, settings }: { products: CommerceProduct[]
                   </div>
                 </div>
                 <div className="commerce-list-side">
-                  <button className="button button-secondary button-small" type="button" onClick={() => updateQuantity(product.id, quantity - 1)}>
+                  <button className="button button-secondary button-small" type="button" onClick={() => void updateQuantity(product.id, quantity - 1)}>
                     -
                   </button>
                   <span className="entity-chip entity-chip-dark">{quantity}</span>
-                  <button className="button button-secondary button-small" type="button" onClick={() => updateQuantity(product.id, quantity + 1)}>
+                  <button className="button button-secondary button-small" type="button" onClick={() => void updateQuantity(product.id, quantity + 1)}>
                     +
                   </button>
-                  <button className="button button-secondary button-small" type="button" onClick={() => removeItem(product.id)}>
+                  <button className="button button-secondary button-small" type="button" onClick={() => void removeItem(product.id)}>
                     Remove
                   </button>
                 </div>
@@ -72,7 +81,7 @@ export function CartClient({ products, settings }: { products: CommerceProduct[]
           </div>
           <span className="status-pill status-neutral">{cartItems.length} products</span>
         </div>
-        <Link className="button" href="/checkout">
+        <Link className="button" href={authenticated ? "/checkout" : "/auth/sign-in?redirectTo=/checkout"}>
           Proceed to Checkout
         </Link>
       </div>

@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import type { CommerceCoupon, CommerceProduct, CommerceSettings } from "@/lib/commerce";
+import { useRouter, useSearchParams } from "next/navigation";
+import type { CommerceAddress, CommerceCoupon, CommerceProduct, CommerceSettings } from "@/lib/commerce";
 import { formatStoreCurrency } from "@/lib/commerce-ui";
 import { useCart } from "@/app/components/cart-provider";
 
@@ -13,6 +13,7 @@ type CheckoutClientProps = {
   initialName: string;
   initialEmail: string;
   initialPhone: string;
+  initialAddresses: CommerceAddress[];
 };
 
 type RazorpayWindow = Window & {
@@ -41,20 +42,24 @@ export function CheckoutClient({
   settings,
   initialName,
   initialEmail,
-  initialPhone
+  initialPhone,
+  initialAddresses
 }: CheckoutClientProps) {
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const { items, addItem, clearCart } = useCart();
+  const { items, addItem, clearCart, loading, authenticated } = useCart();
   const selectedProductId = searchParams.get("product");
   const paypalInternalOrder = searchParams.get("internal_order");
   const paypalToken = searchParams.get("token");
   const [customerName, setCustomerName] = useState(initialName);
   const [customerEmail, setCustomerEmail] = useState(initialEmail);
   const [customerPhone, setCustomerPhone] = useState(initialPhone);
-  const [line1, setLine1] = useState("");
-  const [city, setCity] = useState("");
-  const [stateName, setStateName] = useState("");
-  const [postalCode, setPostalCode] = useState("");
+  const [selectedAddressId, setSelectedAddressId] = useState(initialAddresses[0]?.id ?? "");
+  const [line1, setLine1] = useState(initialAddresses[0]?.line1 ?? "");
+  const [city, setCity] = useState(initialAddresses[0]?.city ?? "");
+  const [stateName, setStateName] = useState(initialAddresses[0]?.state ?? "");
+  const [postalCode, setPostalCode] = useState(initialAddresses[0]?.postalCode ?? "");
+  const [country, setCountry] = useState(initialAddresses[0]?.country ?? "India");
   const [couponCode, setCouponCode] = useState("");
   const [paymentProvider, setPaymentProvider] = useState<"Razorpay" | "PayPal">("Razorpay");
   const [busy, setBusy] = useState(false);
@@ -62,10 +67,36 @@ export function CheckoutClient({
   const [messageTone, setMessageTone] = useState<"success" | "error">("success");
 
   useEffect(() => {
-    if (selectedProductId && !items.find((item) => item.productId === selectedProductId)) {
-      addItem(selectedProductId, 1);
+    if (!selectedProductId) {
+      return;
     }
-  }, [addItem, items, selectedProductId]);
+
+    const existing = items.find((item) => item.productId === selectedProductId);
+    if (existing || loading) {
+      return;
+    }
+
+    void addItem(selectedProductId, 1).then((result) => {
+      if (result.requiresAuth) {
+        window.location.href = "/auth/sign-in?redirectTo=/checkout";
+      }
+    });
+  }, [addItem, items, loading, selectedProductId]);
+
+  useEffect(() => {
+    const selectedAddress = initialAddresses.find((address) => address.id === selectedAddressId);
+    if (!selectedAddress) {
+      return;
+    }
+
+    setCustomerName(selectedAddress.fullName || customerName);
+    setCustomerPhone(selectedAddress.phone || customerPhone);
+    setLine1(selectedAddress.line1);
+    setCity(selectedAddress.city);
+    setStateName(selectedAddress.state);
+    setPostalCode(selectedAddress.postalCode);
+    setCountry(selectedAddress.country);
+  }, [customerName, customerPhone, initialAddresses, selectedAddressId]);
 
   useEffect(() => {
     async function capturePayPalReturn() {
@@ -87,9 +118,8 @@ export function CheckoutClient({
         if (!response.ok) {
           throw new Error(result.message || "Unable to confirm PayPal payment.");
         }
-        clearCart();
-        setMessageTone("success");
-        setMessage(result.message || "PayPal payment confirmed.");
+        await clearCart();
+        router.replace(`/checkout/success?order=${paypalInternalOrder}`);
       } catch (error) {
         setMessageTone("error");
         setMessage(error instanceof Error ? error.message : "Unable to confirm PayPal payment.");
@@ -99,7 +129,7 @@ export function CheckoutClient({
     }
 
     void capturePayPalReturn();
-  }, [clearCart, paypalInternalOrder, paypalToken]);
+  }, [clearCart, paypalInternalOrder, paypalToken, router]);
 
   const selectedItems = useMemo(
     () =>
@@ -123,7 +153,18 @@ export function CheckoutClient({
   const shipping = subtotal - discount >= 1499 || subtotal === 0 ? 0 : 120;
   const total = Math.max(0, subtotal - discount + shipping);
 
+  async function redirectToSuccess(orderId: string) {
+    await clearCart();
+    router.push(`/checkout/success?order=${orderId}`);
+    router.refresh();
+  }
+
   async function handleCheckout() {
+    if (!authenticated) {
+      window.location.href = "/auth/sign-in?redirectTo=/checkout";
+      return;
+    }
+
     if (!selectedItems.length) {
       setMessageTone("error");
       setMessage("Add products to your cart before checkout.");
@@ -146,7 +187,7 @@ export function CheckoutClient({
             city,
             state: stateName,
             postalCode,
-            country: "India"
+            country
           },
           items: selectedItems.map((item) => ({
             productId: item.product.id,
@@ -183,9 +224,7 @@ export function CheckoutClient({
           if (!confirm.ok) {
             throw new Error(confirmResult.message || "Unable to confirm mock payment.");
           }
-          clearCart();
-          setMessageTone("success");
-          setMessage("Order placed successfully. Payment was confirmed in demo mode.");
+          await redirectToSuccess(result.order.id);
           return;
         }
 
@@ -228,9 +267,7 @@ export function CheckoutClient({
             if (!verifyResponse.ok) {
               throw new Error(verifyResult.message || "Unable to verify payment.");
             }
-            clearCart();
-            setMessageTone("success");
-            setMessage("Payment completed successfully.");
+            await redirectToSuccess(result.order!.id);
           },
           theme: {
             color: "#8f251b"
@@ -252,9 +289,7 @@ export function CheckoutClient({
         if (!confirm.ok) {
           throw new Error(confirmResult.message || "Unable to confirm demo payment.");
         }
-        clearCart();
-        setMessageTone("success");
-        setMessage("Order placed successfully. Payment was confirmed in demo mode.");
+        await redirectToSuccess(result.order.id);
         return;
       }
 
@@ -276,7 +311,9 @@ export function CheckoutClient({
         </div>
 
         <div className="commerce-list">
-          {selectedItems.length ? (
+          {loading ? (
+            <p className="admin-copy">Loading your cart...</p>
+          ) : selectedItems.length ? (
             selectedItems.map((item) => (
               <div className="commerce-list-item" key={item.product.id}>
                 <div>
@@ -298,6 +335,16 @@ export function CheckoutClient({
 
       <div className="commerce-panel">
         <div className="admin-form-grid">
+          {initialAddresses.length ? (
+            <select value={selectedAddressId} onChange={(event) => setSelectedAddressId(event.target.value)}>
+              <option value="">Use a custom address</option>
+              {initialAddresses.map((address) => (
+                <option key={address.id} value={address.id}>
+                  {address.label || address.fullName} - {address.city}
+                </option>
+              ))}
+            </select>
+          ) : null}
           <input placeholder="Full name" value={customerName} onChange={(event) => setCustomerName(event.target.value)} />
           <input placeholder="Email" value={customerEmail} onChange={(event) => setCustomerEmail(event.target.value)} />
           <input placeholder="Phone number" value={customerPhone} onChange={(event) => setCustomerPhone(event.target.value)} />
@@ -305,6 +352,7 @@ export function CheckoutClient({
           <input placeholder="City" value={city} onChange={(event) => setCity(event.target.value)} />
           <input placeholder="State" value={stateName} onChange={(event) => setStateName(event.target.value)} />
           <input placeholder="Postal code" value={postalCode} onChange={(event) => setPostalCode(event.target.value)} />
+          <input placeholder="Country" value={country} onChange={(event) => setCountry(event.target.value)} />
           <input placeholder="Coupon code" value={couponCode} onChange={(event) => setCouponCode(event.target.value.toUpperCase())} />
           <select value={paymentProvider} onChange={(event) => setPaymentProvider(event.target.value as "Razorpay" | "PayPal")}>
             <option value="Razorpay">Razorpay</option>
@@ -325,27 +373,26 @@ export function CheckoutClient({
               <strong>Discount</strong>
               <p>{formatStoreCurrency(discount, settings)}</p>
             </div>
-            <span className="status-pill status-success">{appliedCoupon ? appliedCoupon.code : "No coupon"}</span>
+            <span className="status-pill status-neutral">{appliedCoupon ? appliedCoupon.code : "No coupon"}</span>
           </div>
           <div className="commerce-status-card">
             <div>
               <strong>Shipping</strong>
               <p>{formatStoreCurrency(shipping, settings)}</p>
             </div>
-            <span className="status-pill status-neutral">{shipping === 0 ? "Free shipping" : "Standard"}</span>
+            <span className="status-pill status-warning">{paymentProvider}</span>
           </div>
           <div className="commerce-status-card">
             <div>
               <strong>Total</strong>
               <p>{formatStoreCurrency(total, settings)}</p>
             </div>
-            <span className="status-pill status-warning">{paymentProvider}</span>
+            <span className="status-pill status-success">Ready to pay</span>
           </div>
         </div>
 
         {message ? <p className={`form-status form-status-${messageTone}`}>{message}</p> : null}
-
-        <button className="button" type="button" disabled={busy} onClick={handleCheckout}>
+        <button className="button" type="button" disabled={busy || loading || !selectedItems.length} onClick={() => void handleCheckout()}>
           {busy ? "Processing..." : `Pay ${formatStoreCurrency(total, settings)}`}
         </button>
       </div>
