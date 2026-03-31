@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { startTransition, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { CommerceSnapshot, CouponInput, OfferInput, ProductInput } from "@/lib/commerce";
@@ -47,7 +48,11 @@ const emptyCoupon: CouponInput = {
   discountType: "percent",
   discountValue: 10,
   minimumOrderAmount: 999,
-  active: true
+  usageLimit: null,
+  usageCount: 0,
+  active: true,
+  startsAt: "",
+  endsAt: ""
 };
 
 async function postJson<T>(url: string, payload: unknown) {
@@ -236,13 +241,18 @@ export function CommerceDashboardClient({ initialSnapshot }: CommerceDashboardCl
     setBusyAction("coupon-save");
     try {
       const result = await postJson<{ coupon: CouponInput & { id: string } }>("/api/admin/commerce/coupons/upsert", couponForm);
+      const normalizedCoupon = {
+        ...result.coupon,
+        usageLimit: result.coupon.usageLimit ?? null,
+        usageCount: result.coupon.usageCount ?? 0
+      };
       setSnapshot((current) => {
         const nextCoupons = [...current.coupons];
         const index = nextCoupons.findIndex((item) => item.id === result.coupon.id);
         if (index >= 0) {
-          nextCoupons[index] = result.coupon;
+          nextCoupons[index] = normalizedCoupon;
         } else {
-          nextCoupons.unshift(result.coupon);
+          nextCoupons.unshift(normalizedCoupon);
         }
         return { ...current, coupons: nextCoupons };
       });
@@ -374,7 +384,7 @@ export function CommerceDashboardClient({ initialSnapshot }: CommerceDashboardCl
               </label>
               {productForm.image ? (
                 <div className="admin-thumbnail">
-                  <img src={productForm.image} alt="Preview" width={40} height={40} style={{ objectFit: "cover", borderRadius: "4px" }} />
+                  <Image src={productForm.image} alt="Preview" width={40} height={40} style={{ objectFit: "cover", borderRadius: "4px" }} />
                 </div>
               ) : null}
             </div>
@@ -578,6 +588,27 @@ export function CommerceDashboardClient({ initialSnapshot }: CommerceDashboardCl
               value={couponForm.minimumOrderAmount}
               onChange={(event) => setCouponForm((current) => ({ ...current, minimumOrderAmount: Number(event.target.value) }))}
             />
+            <input
+              type="number"
+              placeholder="Usage limit"
+              value={couponForm.usageLimit ?? ""}
+              onChange={(event) =>
+                setCouponForm((current) => ({
+                  ...current,
+                  usageLimit: event.target.value ? Number(event.target.value) : null
+                }))
+              }
+            />
+            <input
+              type="datetime-local"
+              value={couponForm.startsAt ? couponForm.startsAt.slice(0, 16) : ""}
+              onChange={(event) => setCouponForm((current) => ({ ...current, startsAt: event.target.value }))}
+            />
+            <input
+              type="datetime-local"
+              value={couponForm.endsAt ? couponForm.endsAt.slice(0, 16) : ""}
+              onChange={(event) => setCouponForm((current) => ({ ...current, endsAt: event.target.value }))}
+            />
             <label className="admin-checkbox">
               <input
                 type="checkbox"
@@ -601,7 +632,10 @@ export function CommerceDashboardClient({ initialSnapshot }: CommerceDashboardCl
               <div className="commerce-list-item" key={coupon.id}>
                 <div>
                   <strong>{coupon.code}</strong>
-                  <p>{coupon.description}</p>
+                  <p>
+                    {coupon.description} | Used {coupon.usageCount}
+                    {coupon.usageLimit !== null ? ` / ${coupon.usageLimit}` : ""}
+                  </p>
                 </div>
                 <div className="commerce-list-side">
                   <button className="button button-secondary button-small" type="button" onClick={() => setCouponForm(coupon)}>

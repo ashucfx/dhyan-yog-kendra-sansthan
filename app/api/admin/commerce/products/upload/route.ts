@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
     const filePath = `products/${fileName}`;
 
-    const { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from("products")
       .upload(filePath, buffer, {
         contentType: file.type,

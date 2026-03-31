@@ -142,7 +142,7 @@ export default async function AdminCommercePage({
                   <div>
                     <strong>{product.name}</strong>
                     <p>
-                      {product.sku} • Stock {product.stock}
+                      {product.sku} | Stock {product.stock}
                     </p>
                   </div>
                   <div className="commerce-list-side">
@@ -198,7 +198,7 @@ export default async function AdminCommercePage({
                   <div>
                     <strong>{order.customerName}</strong>
                     <p>
-                      {order.id} • {order.paymentProvider} • {new Date(order.createdAt).toLocaleString("en-IN")}
+                      {order.id} | {order.paymentProvider} | {new Date(order.createdAt).toLocaleString("en-IN")}
                     </p>
                   </div>
                   <div className="commerce-list-side">
@@ -223,7 +223,7 @@ export default async function AdminCommercePage({
                   <div>
                     <strong>{shipment.partner}</strong>
                     <p>
-                      {shipment.orderId} • AWB {shipment.awb}
+                      {shipment.orderId} | AWB {shipment.awb}
                     </p>
                   </div>
                   <div className="commerce-list-side">
@@ -254,7 +254,7 @@ export default async function AdminCommercePage({
                       <strong>{customer.fullName || customer.email}</strong>
                       <p>
                         {customer.email}
-                        {customer.phone ? ` • ${customer.phone}` : ""}
+                        {customer.phone ? ` | ${customer.phone}` : ""}
                       </p>
                     </div>
                     <div className="commerce-list-side">
@@ -307,15 +307,15 @@ export default async function AdminCommercePage({
             <div className="commerce-panel-heading">
               <div>
                 <p className="admin-kicker">Build map</p>
-                <h2>What production setup still requires</h2>
+                <h2>Operational readiness notes</h2>
               </div>
             </div>
             <ul className="check-list">
-              <li>Replace local starter data with tables from `supabase/commerce.sql`.</li>
-              <li>Add admin CRUD routes for products, offers, coupons, and order status transitions.</li>
-              <li>Verify Razorpay signatures server-side before marking orders paid.</li>
-              <li>Capture PayPal orders from a server route for international checkout.</li>
-              <li>Push paid orders into Shiprocket and sync AWB, labels, and tracking states.</li>
+              <li>Supabase should run the updated `supabase/commerce.sql` schema before production rollout.</li>
+              <li>Razorpay, PayPal, and Shiprocket remain environment-driven and stay in mock-safe mode without secrets.</li>
+              <li>Orders now move from creation to payment capture before stock is reduced.</li>
+              <li>Coupons respect minimum order value, usage limits, and active date windows.</li>
+              <li>Admin should review RLS policies and storage bucket permissions before exposing uploads publicly.</li>
             </ul>
           </article>
         </section>

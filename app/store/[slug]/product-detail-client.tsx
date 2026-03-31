@@ -29,7 +29,7 @@ export function ProductDetailClient({
   const mediaItems = useMemo<MediaItem[]>(() => {
     const items: MediaItem[] = (product.gallery ?? [product.image]).map((image) => ({ kind: "image", value: image }));
     if (product.videoUrl) {
-      items.push({ kind: "video" as const, value: product.videoUrl });
+      items.push({ kind: "video", value: product.videoUrl });
     }
     return items;
   }, [product.gallery, product.image, product.videoUrl]);
@@ -91,12 +91,12 @@ export function ProductDetailClient({
   }
 
   return (
-    <>
-      <section className="section product-detail-shell">
-        <div className="product-media-column">
+    <div className="product-shell">
+      <section className="section product-hero">
+        <div className="product-media-stage">
           <div className="product-main-media">
             {selectedMedia.kind === "image" ? (
-              <Image src={selectedMedia.value} alt={product.name} fill className="product-image" />
+              <Image src={selectedMedia.value} alt={product.name} fill className="product-image" sizes="(max-width: 900px) 100vw, 55vw" />
             ) : (
               <iframe
                 title={`${product.name} video`}
@@ -116,7 +116,7 @@ export function ProductDetailClient({
                 onClick={() => setSelectedMedia(item)}
               >
                 {item.kind === "image" ? (
-                  <Image src={item.value} alt={`${product.name} media ${index + 1}`} fill className="product-image" />
+                  <Image src={item.value} alt={`${product.name} media ${index + 1}`} fill className="product-image" sizes="100px" />
                 ) : (
                   <div className="product-video-thumb">
                     <span>Video</span>
@@ -127,42 +127,63 @@ export function ProductDetailClient({
           </div>
         </div>
 
-        <div className="product-info-column">
+        <div className="product-summary-panel">
           <p className="shopper-category">{product.badge}</p>
           <h1>{product.name}</h1>
+          <p className="product-summary-copy">{product.shortDescription}</p>
+
           <div className="product-rating-row">
             <span>{rating ? rating.toFixed(1) : "New"} / 5</span>
             <span>{reviewCount} ratings</span>
             <span>{reviews.length} comments</span>
           </div>
-          <div className="commerce-price-row">
+
+          <div className="commerce-price-row product-price-row">
             <strong>{formatStoreCurrency(product.salePrice, settings)}</strong>
             <span>{formatStoreCurrency(product.basePrice, settings)}</span>
             <em>{getStoreDiscountPercent(product)}% off</em>
           </div>
-          <p className="lead product-summary">{product.shortDescription}</p>
-          <div className="mini-benefits">
+
+          <div className="shop-benefit-row product-benefit-row">
             {product.benefits.map((benefit) => (
               <span key={benefit}>{benefit}</span>
             ))}
           </div>
+
+          <div className="product-summary-grid">
+            <div>
+              <strong>{product.stock}</strong>
+              <span>Units in stock</span>
+            </div>
+            <div>
+              <strong>{product.sku}</strong>
+              <span>SKU reference</span>
+            </div>
+            <div>
+              <strong>Fast</strong>
+              <span>Checkout ready</span>
+            </div>
+          </div>
+
           <div className="product-cta-row">
             <AddToCartButton productId={product.id} checkoutHref={`/checkout?product=${product.id}`} />
             <Link className="button button-secondary" href="/store">
-              Back to Store
+              Back to store
             </Link>
           </div>
         </div>
       </section>
 
-      <section className="section product-detail-sections page-end-section">
+      <section className="section product-detail-grid page-end-section">
         <article className="product-detail-panel">
-          <h2>Description</h2>
+          <p className="eyebrow">Product details</p>
+          <h2>What this product is designed to support</h2>
           <p>{product.description}</p>
         </article>
 
         <article className="product-detail-panel">
-          <h2>Highlights</h2>
+          <p className="eyebrow">Highlights</p>
+          <h2>Key benefits</h2>
           <ul className="check-list">
             {product.benefits.map((benefit) => (
               <li key={benefit}>{benefit}</li>
@@ -170,18 +191,24 @@ export function ProductDetailClient({
           </ul>
         </article>
 
-        <article className="product-detail-panel">
+        <article className="product-detail-panel product-review-panel">
+          <p className="eyebrow">Reviews</p>
           <h2>Ratings and comments</h2>
+
           <div className="product-review-list">
-            {reviews.map((review) => (
-              <div className="product-review-card" key={review.id}>
-                <div className="product-review-head">
-                  <strong>{review.author}</strong>
-                  <span>{review.rating} / 5</span>
+            {reviews.length ? (
+              reviews.map((review) => (
+                <div className="product-review-card" key={review.id}>
+                  <div className="product-review-head">
+                    <strong>{review.author}</strong>
+                    <span>{review.rating} / 5</span>
+                  </div>
+                  <p>{review.comment}</p>
                 </div>
-                <p>{review.comment}</p>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="admin-copy">No reviews yet. The first review helps future buyers decide faster.</p>
+            )}
           </div>
 
           <div className="product-review-form">
@@ -195,12 +222,12 @@ export function ProductDetailClient({
             </select>
             <textarea placeholder="Write your comment" value={comment} onChange={(event) => setComment(event.target.value)} />
             {message ? <p className={`form-status form-status-${messageTone}`}>{message}</p> : null}
-            <button className="button button-small" type="button" disabled={busy} onClick={submitReview}>
-              {busy ? "Submitting..." : "Submit Review"}
+            <button className="button button-small" type="button" disabled={busy} onClick={() => void submitReview()}>
+              {busy ? "Submitting..." : "Submit review"}
             </button>
           </div>
         </article>
       </section>
-    </>
+    </div>
   );
 }
