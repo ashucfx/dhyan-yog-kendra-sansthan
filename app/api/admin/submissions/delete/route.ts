@@ -1,11 +1,11 @@
 import { deleteSubmission } from "@/lib/submissions";
-import { isAdminAuthenticated } from "@/lib/admin-auth";
+import { assertAdminUser } from "@/lib/admin-rbac";
 
 export async function POST(request: Request) {
-  const authenticated = await isAdminAuthenticated();
-
-  if (!authenticated) {
-    return Response.json({ message: "Unauthorized." }, { status: 401 });
+  try {
+    await assertAdminUser();
+  } catch (error) {
+    return Response.json({ message: error instanceof Error ? error.message : "Unauthorized." }, { status: 401 });
   }
 
   const formData = await request.formData();

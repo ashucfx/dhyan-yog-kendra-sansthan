@@ -1,8 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { createClient } from "@supabase/supabase-js";
 import { calculateShippingCharge, estimateShippingForPostalCode, validateCouponForSubtotal } from "@/lib/commerce-pricing";
 import { normalizeEmail, normalizeIndianMobile, validateEmail, validateIndianMobile } from "@/lib/customer-validation";
+import { getSupabaseServiceClient } from "@/lib/supabase/service";
 
 export type PaymentProviderStatus = "planned" | "active" | "disabled";
 
@@ -98,6 +99,7 @@ export type CommerceOrder = {
   shipping: number;
   total: number;
   couponCode?: string;
+  paymentReference?: string;
   shippingAddress?: {
     line1: string;
     landmark?: string;
@@ -242,6 +244,15 @@ export type CreateOrderInput = {
   paymentProvider: "Razorpay" | "PayPal";
 };
 
+type OrderPaymentReference = {
+  provider: "Razorpay" | "PayPal" | "Mock";
+  paymentRecordId?: string;
+  externalOrderId?: string;
+  externalPaymentId?: string;
+  mode?: "gateway" | "mock";
+  verifiedAt?: string;
+};
+
 const commerceDataFile = join(process.cwd(), "data", "commerce.json");
 const commerceUserDataFile = join(process.cwd(), "data", "commerce-users.json");
 
@@ -251,20 +262,8 @@ type LocalUserState = {
   cartItems: CommerceCartItem[];
 };
 
-function getSupabaseClient() {
-  const url = process.env.SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!url || !serviceRoleKey) {
-    return null;
-  }
-
-  return createClient(url, serviceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  });
+function getSupabaseClient(): any {
+  return getSupabaseServiceClient() as any;
 }
 
 async function readLocalSnapshot() {
@@ -341,7 +340,7 @@ async function readSupabaseSnapshot(): Promise<CommerceSnapshot | null> {
         supabase
           .from("orders")
           .select(
-            "id, user_id, customer_name, customer_email, customer_phone, status, fulfillment_status, payment_provider, payment_status, subtotal, discount, shipping, total, coupon_code, shipping_address, created_at"
+            "id, user_id, customer_name, customer_email, customer_phone, status, fulfillment_status, payment_provider, payment_status, payment_reference, subtotal, discount, shipping, total, coupon_code, shipping_address, created_at"
           )
           .order("created_at", { ascending: false })
           .limit(800),
@@ -360,12 +359,21 @@ async function readSupabaseSnapshot(): Promise<CommerceSnapshot | null> {
       throw new Error(firstError.message);
     }
 
-    const settings = settingsResult.data
+    const settingsRow = settingsResult.data as
+      | {
+          currency_code: string;
+          currency_symbol: string;
+          support_email: string;
+          support_phone: string;
+        }
+      | null;
+
+    const settings = settingsRow
       ? {
-          currencyCode: settingsResult.data.currency_code,
-          currencySymbol: settingsResult.data.currency_symbol,
-          supportEmail: settingsResult.data.support_email,
-          supportPhone: settingsResult.data.support_phone,
+          currencyCode: settingsRow.currency_code,
+          currencySymbol: settingsRow.currency_symbol,
+          supportEmail: settingsRow.support_email,
+          supportPhone: settingsRow.support_phone,
           payments: [
             {
               provider: "Razorpay",
@@ -392,15 +400,103 @@ async function readSupabaseSnapshot(): Promise<CommerceSnapshot | null> {
       return null;
     }
 
+    const categoryRows = (categoriesResult.data ?? []) as Array<{ id: string; slug: string; name: string; description?: string | null }>;
+    const productRows = (productsResult.data ?? []) as Array<{
+      id: string;
+      slug: string;
+      name: string;
+      sku: string;
+      category_slug: string;
+      short_description: string;
+      description?: string | null;
+      badge?: string | null;
+      image_url: string;
+      gallery?: unknown;
+      base_price: number;
+      sale_price: number;
+      stock: number;
+      featured: boolean;
+      active?: boolean | null;
+      video_url?: string | null;
+      benefits?: unknown;
+    }>;
+    const offerRows = (offersResult.data ?? []) as Array<{
+      id: string;
+      title: string;
+      description?: string | null;
+      kind: string;
+      discount_type: "percent" | "flat";
+      discount_value: number;
+      active: boolean;
+    }>;
+    const couponRows = (couponsResult.data ?? []) as Array<{
+      id: string;
+      code: string;
+      description?: string | null;
+      discount_type: "percent" | "flat";
+      discount_value: number;
+      minimum_order_amount: number;
+      usage_limit?: number | null;
+      usage_count?: number | null;
+      active: boolean;
+      starts_at?: string | null;
+      ends_at?: string | null;
+    }>;
+    const orderRows = (ordersResult.data ?? []) as Array<{
+      id: string;
+      user_id?: string | null;
+      customer_name: string;
+      customer_email: string;
+      customer_phone?: string | null;
+      status: string;
+      fulfillment_status: string;
+      payment_provider: string;
+      payment_status: string;
+      payment_reference?: string | null;
+      subtotal: number;
+      discount: number;
+      shipping: number;
+      total: number;
+      coupon_code?: string | null;
+      shipping_address?: Record<string, unknown> | null;
+      created_at: string;
+    }>;
+    const orderItemRows = (orderItemsResult.data ?? []) as Array<{
+      id: string;
+      order_id: string;
+      product_id: string;
+      product_name: string;
+      sku: string;
+      quantity: number;
+      unit_price: number;
+      total_price: number;
+    }>;
+    const shipmentRows = (shipmentsResult.data ?? []) as Array<{
+      id: string;
+      order_id: string;
+      partner: string;
+      awb: string;
+      status: string;
+      tracking_url: string;
+    }>;
+    const reviewRows = (productReviewsResult.data ?? []) as Array<{
+      id: string;
+      product_id: string;
+      author: string;
+      rating: number;
+      comment: string;
+      created_at: string;
+    }>;
+
     return {
       settings,
-      categories: (categoriesResult.data ?? []).map((item) => ({
+      categories: categoryRows.map((item) => ({
         id: item.id,
         slug: item.slug,
         name: item.name,
         description: item.description ?? ""
       })),
-      products: (productsResult.data ?? []).map((item) => ({
+      products: productRows.map((item) => ({
         id: item.id,
         slug: item.slug,
         name: item.name,
@@ -419,7 +515,7 @@ async function readSupabaseSnapshot(): Promise<CommerceSnapshot | null> {
         videoUrl: item.video_url ?? "",
         benefits: Array.isArray(item.benefits) ? item.benefits : []
       })),
-      offers: (offersResult.data ?? []).map((item) => ({
+      offers: offerRows.map((item) => ({
         id: item.id,
         title: item.title,
         description: item.description ?? "",
@@ -428,7 +524,7 @@ async function readSupabaseSnapshot(): Promise<CommerceSnapshot | null> {
         discountValue: item.discount_value,
         active: item.active
       })),
-      coupons: (couponsResult.data ?? []).map((item) => ({
+      coupons: couponRows.map((item) => ({
         id: item.id,
         code: item.code,
         description: item.description ?? "",
@@ -441,34 +537,38 @@ async function readSupabaseSnapshot(): Promise<CommerceSnapshot | null> {
         startsAt: item.starts_at ?? undefined,
         endsAt: item.ends_at ?? undefined
       })),
-      orders: (ordersResult.data ?? []).map((item) => ({
-        id: item.id,
-        userId: item.user_id ?? undefined,
-        customerName: item.customer_name,
-        customerEmail: item.customer_email,
-        customerPhone: item.customer_phone ?? undefined,
-        status: item.status,
-        fulfillmentStatus: item.fulfillment_status,
-        paymentProvider: item.payment_provider,
-        paymentStatus: item.payment_status,
-        subtotal: item.subtotal,
-        discount: item.discount,
-        shipping: item.shipping,
-        total: item.total,
-        couponCode: item.coupon_code ?? undefined,
-        shippingAddress: item.shipping_address
-          ? {
-              line1: item.shipping_address.line1 ?? "",
-              landmark: item.shipping_address.landmark ?? "",
-              city: item.shipping_address.city ?? "",
-              state: item.shipping_address.state ?? "",
-              postalCode: item.shipping_address.postalCode ?? item.shipping_address.postal_code ?? "",
-              country: item.shipping_address.country ?? "India"
-            }
-          : undefined,
-        createdAt: item.created_at
-      })),
-      orderItems: (orderItemsResult.data ?? []).map((item) => ({
+      orders: orderRows.map((item) => {
+        const shippingAddress = item.shipping_address ?? {};
+        return {
+          id: item.id,
+          userId: item.user_id ?? undefined,
+          customerName: item.customer_name,
+          customerEmail: item.customer_email,
+          customerPhone: item.customer_phone ?? undefined,
+          status: item.status,
+          fulfillmentStatus: item.fulfillment_status,
+          paymentProvider: item.payment_provider,
+          paymentStatus: item.payment_status,
+          subtotal: item.subtotal,
+          discount: item.discount,
+          shipping: item.shipping,
+          total: item.total,
+          couponCode: item.coupon_code ?? undefined,
+          paymentReference: item.payment_reference ?? undefined,
+          shippingAddress: item.shipping_address
+            ? {
+                line1: String(shippingAddress.line1 ?? ""),
+                landmark: String(shippingAddress.landmark ?? ""),
+                city: String(shippingAddress.city ?? ""),
+                state: String(shippingAddress.state ?? ""),
+                postalCode: String(shippingAddress.postalCode ?? shippingAddress.postal_code ?? ""),
+                country: String(shippingAddress.country ?? "India")
+              }
+            : undefined,
+          createdAt: item.created_at
+        } satisfies CommerceOrder;
+      }),
+      orderItems: orderItemRows.map((item) => ({
         id: item.id,
         orderId: item.order_id,
         productId: item.product_id,
@@ -478,7 +578,7 @@ async function readSupabaseSnapshot(): Promise<CommerceSnapshot | null> {
         unitPrice: item.unit_price,
         totalPrice: item.total_price
       })),
-      shipments: (shipmentsResult.data ?? []).map((item) => ({
+      shipments: shipmentRows.map((item) => ({
         id: item.id,
         orderId: item.order_id,
         partner: item.partner,
@@ -486,7 +586,7 @@ async function readSupabaseSnapshot(): Promise<CommerceSnapshot | null> {
         status: item.status,
         trackingUrl: item.tracking_url
       })),
-      productReviews: (productReviewsResult.data ?? []).map((item) => ({
+      productReviews: reviewRows.map((item) => ({
         id: item.id,
         productId: item.product_id,
         author: item.author,
@@ -562,6 +662,34 @@ function buildOrderId() {
   return `order-${Date.now()}`;
 }
 
+function serializeOrderPaymentReference(reference: OrderPaymentReference) {
+  return JSON.stringify(reference);
+}
+
+function parseOrderPaymentReference(value?: string) {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(value) as Partial<OrderPaymentReference>;
+    if (!parsed.provider) {
+      return null;
+    }
+    return parsed as OrderPaymentReference;
+  } catch {
+    return null;
+  }
+}
+
+function mergePaymentReference(existing: OrderPaymentReference | null, incoming: OrderPaymentReference) {
+  return {
+    ...existing,
+    ...incoming,
+    provider: incoming.provider || existing?.provider || "Mock"
+  } satisfies OrderPaymentReference;
+}
+
 function normalizeOptionalDate(value: string | undefined) {
   const trimmed = value?.trim();
   return trimmed ? new Date(trimmed).toISOString() : undefined;
@@ -576,6 +704,25 @@ function normalizeUsageLimit(value: number | null | undefined) {
 }
 
 export async function upsertProduct(input: ProductInput) {
+  const snapshot = await loadCommerceSnapshot();
+  const categoryExists = snapshot.categories.some((category) => category.slug === sanitizeSlug(input.categorySlug));
+
+  if (!input.name.trim() || !input.sku.trim() || !input.shortDescription.trim() || !input.image.trim()) {
+    throw new Error("Name, SKU, short description, and image are required.");
+  }
+
+  if (!categoryExists) {
+    throw new Error("Select a valid product category.");
+  }
+
+  if (sanitizeCurrency(input.salePrice) > sanitizeCurrency(input.basePrice)) {
+    throw new Error("Sale price cannot be greater than base price.");
+  }
+
+  if (!input.description.trim()) {
+    throw new Error("Product description is required.");
+  }
+
   const payload = {
     id: input.id || crypto.randomUUID(),
     slug: sanitizeSlug(input.slug || input.name),
@@ -626,7 +773,6 @@ export async function upsertProduct(input: ProductInput) {
     return payload;
   }
 
-  const snapshot = await loadCommerceSnapshot();
   const local = cloneLocalSnapshot(snapshot);
   const existingIndex = local.products.findIndex((item) => item.id === payload.id);
 
@@ -669,6 +815,16 @@ export async function createProductReview(input: {
   rating: number;
   comment: string;
 }) {
+  const snapshot = await loadCommerceSnapshot();
+  const product = snapshot.products.find((item) => item.id === input.productId && item.active);
+  if (!product) {
+    throw new Error("This product is not available for review.");
+  }
+
+  if (sanitizeText(input.comment).length < 8) {
+    throw new Error("Write at least a short review before submitting.");
+  }
+
   const review: CommerceProductReview = {
     id: crypto.randomUUID(),
     productId: input.productId,
@@ -694,7 +850,6 @@ export async function createProductReview(input: {
     return review;
   }
 
-  const snapshot = await loadCommerceSnapshot();
   const local = cloneLocalSnapshot(snapshot);
   local.productReviews.unshift(review);
   await writeLocalSnapshot(local);
@@ -714,13 +869,30 @@ export function getProductReviews(snapshot: CommerceSnapshot, productId: string)
 }
 
 export async function upsertOffer(input: OfferInput) {
+  if (!input.title.trim()) {
+    throw new Error("Offer title is required.");
+  }
+
+  if (!input.kind.trim()) {
+    throw new Error("Offer kind is required.");
+  }
+
+  const discountValue = sanitizeCurrency(input.discountValue);
+  if (discountValue <= 0) {
+    throw new Error("Offer discount must be greater than zero.");
+  }
+
+  if (input.discountType === "percent" && discountValue > 100) {
+    throw new Error("Percent offers cannot exceed 100.");
+  }
+
   const payload = {
     id: input.id || crypto.randomUUID(),
     title: sanitizeText(input.title),
     description: input.description.trim(),
     kind: sanitizeSlug(input.kind),
     discountType: input.discountType,
-    discountValue: sanitizeCurrency(input.discountValue),
+    discountValue,
     active: Boolean(input.active)
   } satisfies CommerceOffer;
 
@@ -769,18 +941,37 @@ export async function deleteOffer(offerId: string) {
 }
 
 export async function upsertCoupon(input: CouponInput) {
+  if (!input.code.trim()) {
+    throw new Error("Coupon code is required.");
+  }
+
+  const discountValue = sanitizeCurrency(input.discountValue);
+  if (discountValue <= 0) {
+    throw new Error("Coupon discount must be greater than zero.");
+  }
+
+  if (input.discountType === "percent" && discountValue > 100) {
+    throw new Error("Percent coupons cannot exceed 100.");
+  }
+
+  const startsAt = normalizeOptionalDate(input.startsAt);
+  const endsAt = normalizeOptionalDate(input.endsAt);
+  if (startsAt && endsAt && new Date(startsAt) > new Date(endsAt)) {
+    throw new Error("Coupon end date must be after the start date.");
+  }
+
   const payload = {
     id: input.id || crypto.randomUUID(),
     code: sanitizeText(input.code).toUpperCase(),
     description: input.description.trim(),
     discountType: input.discountType,
-    discountValue: sanitizeCurrency(input.discountValue),
+    discountValue,
     minimumOrderAmount: sanitizeCurrency(input.minimumOrderAmount),
     usageLimit: normalizeUsageLimit(input.usageLimit),
     usageCount: sanitizeCurrency(input.usageCount ?? 0),
     active: Boolean(input.active),
-    startsAt: normalizeOptionalDate(input.startsAt),
-    endsAt: normalizeOptionalDate(input.endsAt)
+    startsAt,
+    endsAt
   } satisfies CommerceCoupon;
 
   const supabase = getSupabaseClient();
@@ -833,7 +1024,23 @@ export async function deleteCoupon(couponId: string) {
 
 export async function createCommerceOrder(input: CreateOrderInput) {
   const snapshot = await loadCommerceSnapshot();
-  const matchedItems = input.items
+  const normalizedItems = Array.from(
+    input.items.reduce((map, item) => {
+      const productId = item.productId?.trim();
+      const quantity = Math.max(0, Math.round(item.quantity));
+      if (!productId || quantity <= 0) {
+        return map;
+      }
+
+      map.set(productId, (map.get(productId) ?? 0) + quantity);
+      return map;
+    }, new Map<string, number>())
+  ).map(([productId, quantity]) => ({
+    productId,
+    quantity
+  }));
+
+  const matchedItems = normalizedItems
     .map((item) => {
       const product = snapshot.products.find((entry) => entry.id === item.productId);
       if (!product || item.quantity <= 0 || product.stock < item.quantity) {
@@ -846,6 +1053,10 @@ export async function createCommerceOrder(input: CreateOrderInput) {
       };
     })
     .filter((item): item is { product: CommerceProduct; quantity: number } => Boolean(item));
+
+  if (matchedItems.length !== normalizedItems.length) {
+    throw new Error("One or more cart items are unavailable or out of stock.");
+  }
 
   if (!matchedItems.length) {
     throw new Error("No valid order items were provided.");
@@ -904,6 +1115,7 @@ export async function createCommerceOrder(input: CreateOrderInput) {
     shipping,
     total,
     couponCode: coupon?.code ?? undefined,
+    paymentReference: undefined,
     shippingAddress: input.shippingAddress,
     createdAt
   };
@@ -921,29 +1133,23 @@ export async function createCommerceOrder(input: CreateOrderInput) {
 
   const supabase = getSupabaseClient();
   if (supabase) {
-    const { error: orderError } = await supabase.from("orders").insert({
-      id: order.id,
-      user_id: order.userId ?? null,
-      customer_name: order.customerName,
-      customer_email: order.customerEmail,
-      customer_phone: input.customerPhone.trim(),
-      status: order.status,
-      fulfillment_status: order.fulfillmentStatus,
-      payment_provider: order.paymentProvider,
-      payment_status: order.paymentStatus,
-      subtotal: order.subtotal,
-      discount: order.discount,
-      shipping: order.shipping,
-      total: order.total,
-      coupon_code: coupon?.code ?? null,
-      shipping_address: input.shippingAddress
-    });
-    if (orderError) {
-      throw new Error(orderError.message);
-    }
-
-    const { error: itemsError } = await supabase.from("order_items").insert(
-      orderItems.map((item) => ({
+    const { data, error } = await supabase.rpc("create_order_with_payment", {
+      p_order_id: order.id,
+      p_user_id: order.userId ?? null,
+      p_customer_name: order.customerName,
+      p_customer_email: order.customerEmail,
+      p_customer_phone: input.customerPhone.trim(),
+      p_status: order.status,
+      p_fulfillment_status: order.fulfillmentStatus,
+      p_payment_provider: order.paymentProvider,
+      p_payment_status: order.paymentStatus,
+      p_subtotal: order.subtotal,
+      p_discount: order.discount,
+      p_shipping: order.shipping,
+      p_total: order.total,
+      p_coupon_code: coupon?.code ?? null,
+      p_shipping_address: input.shippingAddress,
+      p_items: orderItems.map((item) => ({
         id: item.id,
         order_id: item.orderId,
         product_id: item.productId,
@@ -952,12 +1158,24 @@ export async function createCommerceOrder(input: CreateOrderInput) {
         quantity: item.quantity,
         unit_price: item.unitPrice,
         total_price: item.totalPrice
-      }))
-    );
-    if (itemsError) {
-      throw new Error(itemsError.message);
+      })),
+      p_payment_reference: null,
+      p_currency_code: snapshot.settings.currencyCode
+    });
+    if (error) {
+      throw new Error(error.message);
     }
 
+    const paymentRecordId = typeof data?.payment_record_id === "string" ? data.payment_record_id : "";
+    if (!paymentRecordId) {
+      throw new Error("Checkout transaction did not return a payment record.");
+    }
+
+    order.paymentReference = serializeOrderPaymentReference({
+      provider: order.paymentProvider as "Razorpay" | "PayPal",
+      paymentRecordId,
+      mode: "gateway"
+    });
     return { order, orderItems, coupon };
   }
 
@@ -968,17 +1186,89 @@ export async function createCommerceOrder(input: CreateOrderInput) {
   return { order, orderItems, coupon };
 }
 
-export async function updateOrderPaymentStatus(
-  orderId: string,
-  paymentStatus: string,
-  status: string,
-  paymentReference?: string
-) {
+export async function setOrderPaymentReference(orderId: string, paymentReference: OrderPaymentReference) {
   const snapshot = await loadCommerceSnapshot();
   const existingOrder = snapshot.orders.find((order) => order.id === orderId);
 
   if (!existingOrder) {
     throw new Error("Order was not found.");
+  }
+
+  const mergedReference = mergePaymentReference(parseOrderPaymentReference(existingOrder.paymentReference), paymentReference);
+  const serializedReference = serializeOrderPaymentReference(mergedReference);
+
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    const { error } = await supabase
+      .from("orders")
+      .update({
+        payment_reference: serializedReference,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", orderId);
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (mergedReference.paymentRecordId) {
+      const { error: paymentError } = await supabase
+        .from("payment_records")
+        .update({
+          provider_order_id: mergedReference.externalOrderId ?? null,
+          provider_payment_id: mergedReference.externalPaymentId ?? null,
+          payload: {
+            provider: mergedReference.provider,
+            mode: mergedReference.mode ?? "gateway"
+          },
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", mergedReference.paymentRecordId);
+      if (paymentError) {
+        throw new Error(paymentError.message);
+      }
+    }
+    return;
+  }
+
+  const local = cloneLocalSnapshot(snapshot);
+  local.orders = local.orders.map((order) =>
+    order.id === orderId
+      ? {
+          ...order,
+          paymentReference: serializedReference
+        }
+      : order
+  );
+  await writeLocalSnapshot(local);
+}
+
+export async function updateOrderPaymentStatus(input: {
+  orderId: string;
+  paymentStatus: string;
+  status: string;
+  paymentReference?: OrderPaymentReference;
+  expectedProvider?: "Razorpay" | "PayPal";
+  expectedExternalOrderId?: string;
+}) {
+  const { orderId, paymentStatus, status, paymentReference, expectedProvider, expectedExternalOrderId } = input;
+  const snapshot = await loadCommerceSnapshot();
+  const existingOrder = snapshot.orders.find((order) => order.id === orderId);
+
+  if (!existingOrder) {
+    throw new Error("Order was not found.");
+  }
+
+  if (expectedProvider && existingOrder.paymentProvider !== expectedProvider) {
+    throw new Error("Payment provider mismatch for this order.");
+  }
+
+  const currentReference = parseOrderPaymentReference(existingOrder.paymentReference);
+  if (
+    expectedExternalOrderId &&
+    currentReference?.externalOrderId &&
+    currentReference.externalOrderId !== expectedExternalOrderId
+  ) {
+    throw new Error("Payment reference mismatch for this order.");
   }
 
   const paid = status === "paid" || paymentStatus === "captured";
@@ -987,50 +1277,189 @@ export async function updateOrderPaymentStatus(
     existingOrder.paymentStatus === "captured" ||
     existingOrder.paymentStatus === "paid";
 
+  const mergedPaymentReference = paymentReference
+    ? mergePaymentReference(currentReference, paymentReference)
+    : currentReference;
+  const nextPaymentReference = mergedPaymentReference
+    ? serializeOrderPaymentReference(mergedPaymentReference)
+    : existingOrder.paymentReference ?? null;
+
   const supabase = getSupabaseClient();
   if (supabase) {
-    const { error } = await supabase.from("orders").update({
-      payment_status: paymentStatus,
-      status,
-      payment_reference: paymentReference ?? null,
-      updated_at: new Date().toISOString(),
-      ...(paid ? { fulfillment_status: "processing" } : {})
-    }).eq("id", orderId);
-    if (error) {
-      throw new Error(error.message);
+    if (paid && mergedPaymentReference?.paymentRecordId) {
+      const { error } = await supabase.rpc("finalize_payment_capture", {
+        p_order_id: orderId,
+        p_payment_record_id: mergedPaymentReference.paymentRecordId,
+        p_provider: expectedProvider ?? mergedPaymentReference.provider,
+        p_external_order_id: mergedPaymentReference.externalOrderId ?? expectedExternalOrderId ?? null,
+        p_external_payment_id: mergedPaymentReference.externalPaymentId ?? null,
+        p_payment_status: paymentStatus,
+        p_order_status: status,
+        p_payment_reference: nextPaymentReference,
+        p_failure_code: null,
+        p_failure_message: null,
+        p_payload: {
+          verifiedAt: mergedPaymentReference.verifiedAt ?? new Date().toISOString(),
+          provider: mergedPaymentReference.provider,
+          mode: mergedPaymentReference.mode ?? "gateway"
+        }
+      });
+      if (error) {
+        throw new Error(error.message);
+      }
+      return;
     }
 
-    if (paid && !wasAlreadyPaid) {
+    const { data: liveOrder, error: liveOrderError } = await supabase
+      .from("orders")
+      .select("id, payment_status, status, payment_provider, payment_reference, coupon_code")
+      .eq("id", orderId)
+      .single();
+    if (liveOrderError) {
+      throw new Error(liveOrderError.message);
+    }
+
+    const liveOrderReference = parseOrderPaymentReference(liveOrder.payment_reference ?? undefined);
+    if (expectedProvider && liveOrder.payment_provider !== expectedProvider) {
+      throw new Error("Payment provider mismatch for this order.");
+    }
+    if (
+      expectedExternalOrderId &&
+      liveOrderReference?.externalOrderId &&
+      liveOrderReference.externalOrderId !== expectedExternalOrderId
+    ) {
+      throw new Error("Payment reference mismatch for this order.");
+    }
+
+    const liveWasAlreadyPaid =
+      liveOrder.status === "paid" ||
+      liveOrder.payment_status === "captured" ||
+      liveOrder.payment_status === "paid";
+
+    if (paid && liveWasAlreadyPaid) {
+      return;
+    }
+
+    if (paid && !wasAlreadyPaid && !liveWasAlreadyPaid) {
       const orderItems = snapshot.orderItems.filter((item) => item.orderId === orderId);
+      const rollbackStocks: Array<{ productId: string; stock: number }> = [];
+      let couponRollback: { id: string; usageCount: number } | null = null;
 
-      for (const line of orderItems) {
-        const product = snapshot.products.find((item) => item.id === line.productId);
-        if (!product) {
-          continue;
+      try {
+        for (const line of orderItems) {
+          const { data: product, error: productError } = await supabase
+            .from("products")
+            .select("id, stock")
+            .eq("id", line.productId)
+            .single();
+          if (productError) {
+            throw new Error(productError.message);
+          }
+          if (product.stock < line.quantity) {
+            throw new Error("One or more ordered products are no longer in stock.");
+          }
+
+          const nextStock = product.stock - line.quantity;
+          const { data: updatedProducts, error: stockError } = await supabase
+            .from("products")
+            .update({ stock: nextStock, updated_at: new Date().toISOString() })
+            .eq("id", line.productId)
+            .eq("stock", product.stock)
+            .select("id");
+          if (stockError) {
+            throw new Error(stockError.message);
+          }
+          if (!updatedProducts?.length) {
+            throw new Error("Stock changed during payment confirmation. Retry checkout.");
+          }
+
+          rollbackStocks.push({
+            productId: line.productId,
+            stock: product.stock
+          });
         }
 
-        const nextStock = Math.max(0, product.stock - line.quantity);
-        const { error: stockError } = await supabase
-          .from("products")
-          .update({ stock: nextStock, updated_at: new Date().toISOString() })
-          .eq("id", line.productId);
-        if (stockError) {
-          throw new Error(stockError.message);
-        }
-      }
-
-      if (existingOrder.couponCode) {
-        const coupon = snapshot.coupons.find((item) => item.code === existingOrder.couponCode);
-        if (coupon) {
-          const { error: couponError } = await supabase
+        if (existingOrder.couponCode) {
+          const { data: coupon, error: couponLookupError } = await supabase
             .from("coupons")
-            .update({ usage_count: coupon.usageCount + 1 })
-            .eq("id", coupon.id);
-          if (couponError) {
-            throw new Error(couponError.message);
+            .select("id, usage_count")
+            .eq("code", existingOrder.couponCode)
+            .maybeSingle();
+          if (couponLookupError) {
+            throw new Error(couponLookupError.message);
+          }
+          if (coupon) {
+            const { data: updatedCoupons, error: couponError } = await supabase
+              .from("coupons")
+              .update({ usage_count: coupon.usage_count + 1 })
+              .eq("id", coupon.id)
+              .eq("usage_count", coupon.usage_count)
+              .select("id");
+            if (couponError) {
+              throw new Error(couponError.message);
+            }
+            if (!updatedCoupons?.length) {
+              throw new Error("Coupon usage changed during payment confirmation. Retry checkout.");
+            }
+            couponRollback = {
+              id: coupon.id,
+              usageCount: coupon.usage_count
+            };
           }
         }
+
+        const { data: updatedOrders, error } = await supabase
+          .from("orders")
+          .update({
+            payment_status: paymentStatus,
+            status,
+            payment_reference: nextPaymentReference,
+            updated_at: new Date().toISOString(),
+            ...(paid ? { fulfillment_status: "processing" } : {})
+          })
+          .eq("id", orderId)
+          .eq("payment_status", liveOrder.payment_status)
+          .eq("status", liveOrder.status)
+          .select("id, payment_status, status");
+        if (error) {
+          throw new Error(error.message);
+        }
+        if (!updatedOrders?.length) {
+          throw new Error("Order state changed during payment confirmation. Retry loading the order.");
+        }
+      } catch (error) {
+        for (const item of rollbackStocks.reverse()) {
+          await supabase
+            .from("products")
+            .update({ stock: item.stock, updated_at: new Date().toISOString() })
+            .eq("id", item.productId);
+        }
+
+        if (couponRollback) {
+          await supabase
+            .from("coupons")
+            .update({ usage_count: couponRollback.usageCount })
+            .eq("id", couponRollback.id);
+        }
+
+        throw error;
       }
+
+      return;
+    }
+
+    const { error } = await supabase
+      .from("orders")
+      .update({
+        payment_status: paymentStatus,
+        status,
+        payment_reference: nextPaymentReference,
+        updated_at: new Date().toISOString(),
+        ...(paid ? { fulfillment_status: "processing" } : {})
+      })
+      .eq("id", orderId);
+    if (error) {
+      throw new Error(error.message);
     }
 
     return;
@@ -1043,6 +1472,7 @@ export async function updateOrderPaymentStatus(
           ...order,
           paymentStatus,
           status,
+          paymentReference: nextPaymentReference ?? undefined,
           fulfillmentStatus: paid ? "processing" : order.fulfillmentStatus
         }
       : order
@@ -1284,7 +1714,21 @@ export async function listAddressesForUser(userId: string) {
     if (error) {
       throw new Error(error.message);
     }
-    return (data ?? []).map(
+    const addressRows = (data ?? []) as Array<{
+      id: string;
+      user_id: string;
+      label?: string | null;
+      full_name: string;
+      phone: string;
+      line1: string;
+      landmark?: string | null;
+      city: string;
+      state: string;
+      postal_code: string;
+      country: string;
+      created_at: string;
+    }>;
+    return addressRows.map(
       (item) =>
         ({
           id: item.id,
@@ -1432,7 +1876,15 @@ export async function listCartItemsForUser(userId: string) {
     if (error) {
       throw new Error(error.message);
     }
-    return (data ?? []).map(
+    const cartRows = (data ?? []) as Array<{
+      id: string;
+      user_id: string;
+      product_id: string;
+      quantity: number;
+      created_at: string;
+      updated_at: string;
+    }>;
+    return cartRows.map(
       (item) =>
         ({
           id: item.id,
@@ -1460,21 +1912,22 @@ export async function setCartItemQuantity(userId: string, productId: string, qua
     return null;
   }
 
+  const product =
+    snapshot.products.find((item) => item.id === productId || item.slug === productId) ?? null;
+  if (!product || !product.active) {
+    throw new Error("This product is no longer available.");
+  }
+
+  if (product.stock <= 0) {
+    throw new Error("This product is currently out of stock.");
+  }
+
+  if (normalizedQuantity > product.stock) {
+    throw new Error(`Only ${product.stock} unit${product.stock === 1 ? "" : "s"} available right now.`);
+  }
+
   if (supabase && snapshot.source === "supabase") {
-    let resolvedId = productId;
-    if (!isUuid(productId)) {
-      const { data: prod, error: productError } = await supabase
-        .from("products")
-        .select("id")
-        .eq("slug", productId)
-        .maybeSingle();
-      if (productError) {
-        throw new Error(productError.message);
-      }
-      if (prod) {
-        resolvedId = prod.id;
-      }
-    }
+    const resolvedId = product.id;
 
     if (!isUuid(resolvedId)) {
       throw new Error("The selected product could not be matched to the active store catalog.");
@@ -1649,7 +2102,15 @@ export async function listCustomerProfiles(): Promise<CommerceCustomerSummary[]>
     return [];
   }
 
-  return (data ?? []).map((row) => ({
+  const rows = (data ?? []) as Array<{
+    id: string;
+    email?: string | null;
+    full_name?: string | null;
+    phone?: string | null;
+    created_at: string;
+  }>;
+
+  return rows.map((row) => ({
     id: row.id,
     email: row.email ?? "",
     fullName: row.full_name ?? "",

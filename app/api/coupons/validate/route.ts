@@ -1,8 +1,11 @@
 import { loadCommerceSnapshot } from "@/lib/commerce";
 import { validateCouponForSubtotal } from "@/lib/commerce-pricing";
+import { assertRateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   try {
+    assertRateLimit(request, { key: "coupon-validate", limit: 20, windowMs: 60_000 });
+
     const payload = (await request.json()) as {
       code?: string;
       subtotal?: number;

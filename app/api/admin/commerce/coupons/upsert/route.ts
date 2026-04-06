@@ -1,9 +1,11 @@
-import { isAdminAuthenticated } from "@/lib/admin-auth";
+import { assertAdminUser } from "@/lib/admin-rbac";
 import { upsertCoupon } from "@/lib/commerce";
 
 export async function POST(request: Request) {
-  if (!(await isAdminAuthenticated())) {
-    return Response.json({ message: "Unauthorized." }, { status: 401 });
+  try {
+    await assertAdminUser();
+  } catch (error) {
+    return Response.json({ message: error instanceof Error ? error.message : "Unauthorized." }, { status: 401 });
   }
 
   try {

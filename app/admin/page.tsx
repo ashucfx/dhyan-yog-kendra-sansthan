@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { isAdminAuthenticated, isAdminKeyConfigured } from "@/lib/admin-auth";
+import { requireAdminUser } from "@/lib/admin-rbac";
 import { formatCurrency, getCommerceOverview, listCustomerProfiles, loadCommerceSnapshot } from "@/lib/commerce";
 import { CommerceDashboardClient } from "./commerce-dashboard-client";
 
@@ -18,46 +18,10 @@ function getStatusTone(status: string) {
 export default async function AdminCommercePage({
   searchParams
 }: {
-  searchParams: Promise<{ error?: "invalid" | "config" }>;
+  searchParams: Promise<Record<string, string | undefined>>;
 }) {
-  const authenticated = await isAdminAuthenticated();
-  const configured = isAdminKeyConfigured();
-  const resolvedSearchParams = await searchParams;
-
-  if (!authenticated) {
-    return (
-      <main className="admin-page">
-        <section className="admin-card">
-          <p className="eyebrow">Commerce admin</p>
-          <h1>Run the store from one dashboard</h1>
-          <p className="admin-copy">
-            Use this dashboard to manage catalog, promotions, payment readiness, orders, and logistics operations.
-          </p>
-          <form className="admin-login" action="/api/admin/login" method="post">
-            <input type="hidden" name="redirectTo" value="/admin" />
-            <label htmlFor="password">
-              Admin password
-              <input id="password" name="password" type="password" placeholder="Enter admin access key" required />
-            </label>
-            <button className="button" type="submit">
-              Open dashboard
-            </button>
-          </form>
-          {resolvedSearchParams.error === "invalid" ? (
-            <p className="form-status form-status-error">Password did not match the configured ADMIN_ACCESS_KEY.</p>
-          ) : null}
-          {resolvedSearchParams.error === "config" ? (
-            <p className="form-status form-status-error">ADMIN_ACCESS_KEY is missing in runtime environment.</p>
-          ) : null}
-          {!configured ? (
-            <p className="form-status form-status-error">
-              Runtime config is missing. Set ADMIN_ACCESS_KEY in .env.local or deployment environment variables.
-            </p>
-          ) : null}
-        </section>
-      </main>
-    );
-  }
+  await searchParams;
+  const admin = await requireAdminUser({ redirectTo: "/admin/sign-in?redirectTo=/admin" });
 
   const snapshot = await loadCommerceSnapshot();
   const overview = getCommerceOverview(snapshot);
@@ -76,6 +40,7 @@ export default async function AdminCommercePage({
             <p className="admin-copy">
               Catalog, coupons, offers, payment readiness, and shipping visibility now sit in one operational surface.
             </p>
+            <span className="entity-chip">Signed in as {admin.email} ({admin.role})</span>
           </div>
           <div className="admin-actions">
             <span className="entity-chip">Data source: {snapshot.source === "supabase" ? "Supabase" : "Local starter data"}</span>
@@ -320,7 +285,7 @@ export default async function AdminCommercePage({
           </article>
         </section>
 
-        <CommerceDashboardClient initialSnapshot={snapshot} />
+        <CommerceDashboardClient initialSnapshot={snapshot} initialCustomers={customers} />
       </section>
     </main>
   );

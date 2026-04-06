@@ -1,6 +1,6 @@
-import { clearAdminSession } from "@/lib/admin-auth";
+import { signOutAdminSession } from "@/lib/admin-rbac";
 
 export async function POST(request: Request) {
-  await clearAdminSession();
-  return Response.redirect(new URL("/admin/submissions", request.url), 303);
+  await signOutAdminSession();
+  return Response.redirect(new URL("/admin/sign-in", request.url), 303);
 }

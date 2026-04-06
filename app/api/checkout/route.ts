@@ -1,10 +1,13 @@
-import { createCommerceOrder } from "@/lib/commerce";
+import { createCommerceOrder, setOrderPaymentReference } from "@/lib/commerce";
 import { createPayPalOrder, createRazorpayOrder } from "@/lib/commerce-integrations";
 import { validateEmail, validateIndianMobile } from "@/lib/customer-validation";
 import { getAuthenticatedUser } from "@/lib/auth-user";
+import { assertRateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   try {
+    assertRateLimit(request, { key: "checkout", limit: 12, windowMs: 60_000 });
+
     const user = await getAuthenticatedUser();
     if (!user) {
       return Response.json({ message: "Please sign in before checkout." }, { status: 401 });
@@ -36,6 +39,14 @@ export async function POST(request: Request) {
 
     if (payload.paymentProvider === "Razorpay") {
       const gatewayOrder = await createRazorpayOrder(result.order.total * 100, result.order.id);
+      if (gatewayOrder) {
+        await setOrderPaymentReference(result.order.id, {
+          provider: "Razorpay",
+          externalOrderId: gatewayOrder.id,
+          mode: "gateway"
+        });
+      }
+
       return Response.json(
         {
           message: "Order created successfully.",
@@ -68,6 +79,14 @@ export async function POST(request: Request) {
       returnUrl: `${origin}/checkout?internal_order=${result.order.id}`,
       cancelUrl: `${origin}/checkout?internal_order=${result.order.id}&paypal_cancel=1`
     });
+
+    if (paypalOrder) {
+      await setOrderPaymentReference(result.order.id, {
+        provider: "PayPal",
+        externalOrderId: paypalOrder.id,
+        mode: "gateway"
+      });
+    }
 
     return Response.json(
       {

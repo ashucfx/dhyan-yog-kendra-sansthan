@@ -3,10 +3,11 @@
 import Image from "next/image";
 import { startTransition, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { CommerceSnapshot, CouponInput, OfferInput, ProductInput } from "@/lib/commerce";
+import type { CommerceCustomerSummary, CommerceSnapshot, CouponInput, OfferInput, ProductInput } from "@/lib/commerce";
 
 type CommerceDashboardClientProps = {
   initialSnapshot: CommerceSnapshot;
+  initialCustomers: CommerceCustomerSummary[];
 };
 
 type ToastState = {
@@ -71,7 +72,7 @@ async function postJson<T>(url: string, payload: unknown) {
   return result;
 }
 
-export function CommerceDashboardClient({ initialSnapshot }: CommerceDashboardClientProps) {
+export function CommerceDashboardClient({ initialSnapshot, initialCustomers }: CommerceDashboardClientProps) {
   const router = useRouter();
   const [snapshot, setSnapshot] = useState(initialSnapshot);
   const [toast, setToast] = useState<ToastState>(null);
@@ -81,6 +82,9 @@ export function CommerceDashboardClient({ initialSnapshot }: CommerceDashboardCl
   const [busyAction, setBusyAction] = useState("");
   const [productQuery, setProductQuery] = useState("");
   const [productFilter, setProductFilter] = useState<"all" | "active" | "inactive" | "featured">("all");
+  const [orderQuery, setOrderQuery] = useState("");
+  const [paymentFilter, setPaymentFilter] = useState<"all" | "captured" | "created" | "failed">("all");
+  const [customerQuery, setCustomerQuery] = useState("");
 
   function notify(tone: "success" | "error", message: string) {
     setToast({ tone, message });
@@ -125,6 +129,48 @@ export function CommerceDashboardClient({ initialSnapshot }: CommerceDashboardCl
       return matchesQuery && matchesFilter;
     });
   }, [productFilter, productQuery, snapshot.products]);
+
+  const filteredOrders = useMemo(() => {
+    return snapshot.orders.filter((order) => {
+      const matchesQuery =
+        !orderQuery ||
+        [order.id, order.customerName, order.customerEmail, order.paymentProvider]
+          .join(" ")
+          .toLowerCase()
+          .includes(orderQuery.toLowerCase());
+      const matchesPayment = paymentFilter === "all" ? true : order.paymentStatus === paymentFilter;
+      return matchesQuery && matchesPayment;
+    });
+  }, [orderQuery, paymentFilter, snapshot.orders]);
+
+  const filteredCustomers = useMemo(() => {
+    return initialCustomers.filter((customer) =>
+      !customerQuery
+        ? true
+        : [customer.fullName, customer.email, customer.phone].join(" ").toLowerCase().includes(customerQuery.toLowerCase())
+    );
+  }, [customerQuery, initialCustomers]);
+
+  const analytics = useMemo(() => {
+    const paidOrders = snapshot.orders.filter((order) => order.paymentStatus === "captured");
+    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const recentOrders = snapshot.orders.filter((order) => new Date(order.createdAt).getTime() >= sevenDaysAgo);
+    const recentRevenue = paidOrders
+      .filter((order) => new Date(order.createdAt).getTime() >= sevenDaysAgo)
+      .reduce((sum, order) => sum + order.total, 0);
+    const averageOrderValue = paidOrders.length
+      ? Math.round(paidOrders.reduce((sum, order) => sum + order.total, 0) / paidOrders.length)
+      : 0;
+    const purchasingCustomers = new Set(paidOrders.map((order) => order.userId).filter(Boolean)).size;
+    const conversionRate = initialCustomers.length ? Math.round((purchasingCustomers / initialCustomers.length) * 100) : 0;
+
+    return {
+      recentOrders: recentOrders.length,
+      recentRevenue,
+      averageOrderValue,
+      conversionRate
+    };
+  }, [initialCustomers.length, snapshot.orders]);
 
   async function handleImageUpload(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -326,6 +372,29 @@ export function CommerceDashboardClient({ initialSnapshot }: CommerceDashboardCl
   return (
     <section className="commerce-admin-manager">
       {toast ? <p className={`form-status form-status-${toast.tone}`}>{toast.message}</p> : null}
+
+      <div className="commerce-admin-grid">
+        <article className="admin-insight-card">
+          <p className="admin-kicker">7-day orders</p>
+          <strong>{analytics.recentOrders}</strong>
+          <span>Recent order velocity across all payment states.</span>
+        </article>
+        <article className="admin-insight-card">
+          <p className="admin-kicker">7-day revenue</p>
+          <strong>{analytics.recentRevenue}</strong>
+          <span>Captured revenue in the last 7 days.</span>
+        </article>
+        <article className="admin-insight-card">
+          <p className="admin-kicker">Average order value</p>
+          <strong>{analytics.averageOrderValue}</strong>
+          <span>Mean ticket size across captured orders.</span>
+        </article>
+        <article className="admin-insight-card">
+          <p className="admin-kicker">Customer conversion</p>
+          <strong>{analytics.conversionRate}%</strong>
+          <span>Registered customers with at least one captured order.</span>
+        </article>
+      </div>
 
       <div className="commerce-admin-panels">
         <article className="commerce-panel">
@@ -663,13 +732,22 @@ export function CommerceDashboardClient({ initialSnapshot }: CommerceDashboardCl
             <h2>Fulfillment and dispatch</h2>
           </div>
         </div>
+        <div className="admin-form-grid admin-form-grid-compact">
+          <input placeholder="Search orders" value={orderQuery} onChange={(event) => setOrderQuery(event.target.value)} />
+          <select value={paymentFilter} onChange={(event) => setPaymentFilter(event.target.value as typeof paymentFilter)}>
+            <option value="all">All payment states</option>
+            <option value="captured">Captured</option>
+            <option value="created">Created</option>
+            <option value="failed">Failed</option>
+          </select>
+        </div>
         <div className="commerce-list">
-          {snapshot.orders.map((order) => (
+          {filteredOrders.map((order) => (
             <div className="commerce-list-item" key={order.id}>
               <div>
                 <strong>{order.customerName}</strong>
                 <p>
-                  {order.id} | {order.paymentProvider} | {order.paymentStatus}
+                  {order.id} | {order.paymentProvider} | {order.paymentStatus} | {order.total}
                 </p>
               </div>
               <div className="commerce-list-side">
@@ -696,6 +774,36 @@ export function CommerceDashboardClient({ initialSnapshot }: CommerceDashboardCl
               </div>
             </div>
           ))}
+          {!filteredOrders.length ? <p className="admin-copy">No orders match the current filters.</p> : null}
+        </div>
+      </article>
+
+      <article className="commerce-panel">
+        <div className="commerce-panel-heading">
+          <div>
+            <p className="admin-kicker">Users</p>
+            <h2>Customer directory</h2>
+          </div>
+        </div>
+        <div className="admin-form-grid admin-form-grid-compact">
+          <input placeholder="Search customers" value={customerQuery} onChange={(event) => setCustomerQuery(event.target.value)} />
+        </div>
+        <div className="commerce-list">
+          {filteredCustomers.slice(0, 40).map((customer) => (
+            <div className="commerce-list-item" key={customer.id}>
+              <div>
+                <strong>{customer.fullName || customer.email}</strong>
+                <p>
+                  {customer.email}
+                  {customer.phone ? ` | ${customer.phone}` : ""}
+                </p>
+              </div>
+              <div className="commerce-list-side">
+                <span>{new Date(customer.createdAt).toLocaleDateString("en-IN")}</span>
+              </div>
+            </div>
+          ))}
+          {!filteredCustomers.length ? <p className="admin-copy">No customers match the current search.</p> : null}
         </div>
       </article>
     </section>

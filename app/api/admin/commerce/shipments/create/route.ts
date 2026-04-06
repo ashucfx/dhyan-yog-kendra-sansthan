@@ -1,10 +1,12 @@
-import { isAdminAuthenticated } from "@/lib/admin-auth";
+import { assertAdminUser } from "@/lib/admin-rbac";
 import { createShipmentRecord, loadCommerceSnapshot } from "@/lib/commerce";
 import { createShiprocketShipment } from "@/lib/commerce-integrations";
 
 export async function POST(request: Request) {
-  if (!(await isAdminAuthenticated())) {
-    return Response.json({ message: "Unauthorized." }, { status: 401 });
+  try {
+    await assertAdminUser();
+  } catch (error) {
+    return Response.json({ message: error instanceof Error ? error.message : "Unauthorized." }, { status: 401 });
   }
 
   const { orderId } = (await request.json()) as { orderId?: string };

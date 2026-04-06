@@ -98,6 +98,7 @@ export function CheckoutClient({
   const [shippingBusy, setShippingBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [messageTone, setMessageTone] = useState<"success" | "error">("success");
+  const isPhoneReadyForCheckout = validateIndianMobile(customerPhone);
 
   useEffect(() => {
     if (!selectedProductId) {
@@ -609,9 +610,9 @@ export function CheckoutClient({
           <h1 className="page-title">Review your cart and complete your order.</h1>
         </div>
 
-        {!initialPhone.trim() ? (
+        {!isPhoneReadyForCheckout ? (
           <p className="form-status form-status-error">
-            Your account is missing a mobile number. Complete your profile before you proceed with payment.
+            Add a valid 10-digit mobile number before proceeding with payment.
           </p>
         ) : null}
 
@@ -749,7 +750,7 @@ export function CheckoutClient({
         <button
           className="button"
           type="button"
-          disabled={busy || loading || !selectedItems.length || Boolean(addressWarning) || !initialPhone.trim()}
+          disabled={busy || loading || !selectedItems.length || Boolean(addressWarning) || !isPhoneReadyForCheckout}
           onClick={() => void handleProceedToPayment()}
         >
           {busy ? "Processing..." : `Proceed to pay ${formatStoreCurrency(total, settings)}`}

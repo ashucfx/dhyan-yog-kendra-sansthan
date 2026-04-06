@@ -1,8 +1,11 @@
 import { createProductReview, getProductReviews, loadCommerceSnapshot } from "@/lib/commerce";
 import { getAuthenticatedUser } from "@/lib/auth-user";
+import { assertRateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   try {
+    assertRateLimit(request, { key: "product-review", limit: 8, windowMs: 60_000 });
+
     const user = await getAuthenticatedUser();
     if (!user) {
       return Response.json({ message: "Please sign in before posting a review." }, { status: 401 });

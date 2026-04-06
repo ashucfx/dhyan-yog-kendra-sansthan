@@ -1,20 +1,24 @@
-import { isAdminAuthenticated } from "@/lib/admin-auth";
-import { createClient } from "@supabase/supabase-js";
+import { assertAdminUser } from "@/lib/admin-rbac";
+import { getSupabaseServiceClient } from "@/lib/supabase/service";
 
 function getSupabaseService() {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!url || !key) {
-    return null;
-  }
-
-  return createClient(url, key);
+  return getSupabaseServiceClient();
 }
 
+const maxUploadSizeBytes = 5 * 1024 * 1024;
+const allowedMimeTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/avif"]);
+const extensionByMimeType: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/avif": "avif"
+};
+
 export async function POST(request: Request) {
-  if (!(await isAdminAuthenticated())) {
-    return Response.json({ message: "Unauthorized." }, { status: 401 });
+  try {
+    await assertAdminUser();
+  } catch (error) {
+    return Response.json({ message: error instanceof Error ? error.message : "Unauthorized." }, { status: 401 });
   }
 
   const supabase = getSupabaseService();
@@ -30,8 +34,16 @@ export async function POST(request: Request) {
       return Response.json({ message: "No file provided." }, { status: 400 });
     }
 
+    if (!allowedMimeTypes.has(file.type)) {
+      return Response.json({ message: "Upload a JPG, PNG, WebP, or AVIF image." }, { status: 400 });
+    }
+
+    if (file.size <= 0 || file.size > maxUploadSizeBytes) {
+      return Response.json({ message: "Image size must be between 1 byte and 5 MB." }, { status: 400 });
+    }
+
     const buffer = Buffer.from(await file.arrayBuffer());
-    const fileExt = file.name.split(".").pop();
+    const fileExt = extensionByMimeType[file.type] ?? "bin";
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
     const filePath = `products/${fileName}`;
 
@@ -39,7 +51,7 @@ export async function POST(request: Request) {
       .from("products")
       .upload(filePath, buffer, {
         contentType: file.type,
-        upsert: true
+        upsert: false
       });
 
     if (error) {
