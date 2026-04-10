@@ -30,7 +30,12 @@ export async function POST(request: Request) {
       return Response.json({ message: "Product id is required." }, { status: 400 });
     }
 
-    const item = await setCartItemQuantity(user.id, productId, Math.max(1, Math.round(quantity ?? 1)));
+    const delta = Math.max(1, Math.round(quantity ?? 1));
+    const existingItems = await listCartItemsForUser(user.id);
+    const existing = existingItems.find((i) => i.productId === productId);
+    const newQuantity = (existing?.quantity ?? 0) + delta;
+
+    const item = await setCartItemQuantity(user.id, productId, newQuantity);
     const items = await listCartItemsForUser(user.id);
     return Response.json({ item, items }, { status: 200 });
   } catch (error) {

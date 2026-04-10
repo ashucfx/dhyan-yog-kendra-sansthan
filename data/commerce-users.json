@@ -1,5 +1,30 @@
 {
   "profiles": [],
   "addresses": [],
-  "cartItems": []
+  "cartItems": [
+    {
+      "id": "4459cecc-a656-4af0-8590-1e9d1ea11272",
+      "userId": "7d43e113-f61b-4bb9-94d1-339466310e74",
+      "productId": "prod-essentials-detox",
+      "quantity": 1,
+      "createdAt": "2026-04-10T13:03:21.196Z",
+      "updatedAt": "2026-04-10T13:03:21.196Z"
+    },
+    {
+      "id": "363f2b82-1aae-402c-87c3-98c68149a8c4",
+      "userId": "7d43e113-f61b-4bb9-94d1-339466310e74",
+      "productId": "prod-herbal-calm",
+      "quantity": 1,
+      "createdAt": "2026-04-09T07:41:35.848Z",
+      "updatedAt": "2026-04-09T07:41:35.848Z"
+    },
+    {
+      "id": "3f30ec5f-2a79-40a0-973c-f0a2c38b1f33",
+      "userId": "7d43e113-f61b-4bb9-94d1-339466310e74",
+      "productId": "prod-herbal-balance",
+      "quantity": 1,
+      "createdAt": "2026-04-07T14:39:38.849Z",
+      "updatedAt": "2026-04-07T14:39:38.849Z"
+    }
+  ]
 }

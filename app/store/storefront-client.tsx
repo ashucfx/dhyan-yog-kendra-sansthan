@@ -6,6 +6,8 @@ import { useMemo, useState } from "react";
 import type { CommerceCategory, CommerceProduct, CommerceSettings } from "@/lib/commerce";
 import { formatStoreCurrency, getStoreDiscountPercent, getStoreProductCategoryName } from "@/lib/commerce-ui";
 import { AddToCartButton } from "@/app/components/add-to-cart-button";
+import { RatingStars } from "@/app/components/rating-stars";
+import { Reveal, StaggerItem, StaggerList } from "@/app/components/reveal";
 
 type StorefrontClientProps = {
   products: CommerceProduct[];
@@ -43,15 +45,17 @@ export function StorefrontClient({ products, categories, settings, reviewSummary
     });
   }, [categoryFilter, priceFilter, products, query]);
 
+  const featuredCount = products.filter((product) => product.featured).length;
+  const inStockCount = products.filter((product) => product.stock > 0).length;
+
   return (
     <div className="shop-shell">
       <section className="section shop-hero">
-        <div className="shop-hero-copy">
+        <Reveal className="shop-hero-copy">
           <p className="eyebrow">Dhyan wellness store</p>
           <h1 className="shop-hero-title">Clean formulations, home-practice essentials, and therapeutic support products.</h1>
           <p className="lead">
-            Browse by concern, compare pricing clearly, and move from discovery to checkout without leaving the store
-            flow.
+            Browse by concern, compare pricing clearly, and choose products that feel aligned with a calmer, healthier routine.
           </p>
           <div className="shop-hero-actions">
             <Link className="button button-small" href="/cart">
@@ -61,7 +65,12 @@ export function StorefrontClient({ products, categories, settings, reviewSummary
               Checkout
             </Link>
           </div>
-        </div>
+          <div className="shop-hero-highlights">
+            <span>{featuredCount} featured picks</span>
+            <span>{inStockCount} ready to ship</span>
+            <span>{categories.length} wellness categories</span>
+          </div>
+        </Reveal>
       </section>
 
       <section className="section shop-toolbar-shell">
@@ -114,15 +123,16 @@ export function StorefrontClient({ products, categories, settings, reviewSummary
           <p className="shop-results-copy">The catalog is sorted for practical browsing on phone and desktop.</p>
         </div>
 
-        <div className="shop-grid">
-          {filteredProducts.map((product) => {
+        {filteredProducts.length ? (
+          <StaggerList className="shop-grid">
+            {filteredProducts.map((product) => {
             const reviewSummary = reviewSummaryByProduct[product.id] ?? { rating: 0, reviewCount: 0 };
             const discountPercent = getStoreDiscountPercent(product);
 
             return (
-              <article className="shop-card" key={product.id}>
+              <StaggerItem className="shop-card" key={product.id}>
                 <Link className="shop-card-media" href={`/store/${product.slug}`}>
-                  <Image src={product.image} alt={product.name} fill className="product-image" sizes="(max-width: 768px) 100vw, 33vw" />
+                  <Image src={product.image} alt={product.name} fill className="product-image" style={{ objectFit: "cover" }} sizes="(max-width: 720px) 100vw, (max-width: 1100px) 50vw, 33vw" />
                   <span className="shop-card-badge">{product.badge || getStoreProductCategoryName(product, categories)}</span>
                 </Link>
 
@@ -140,8 +150,12 @@ export function StorefrontClient({ products, categories, settings, reviewSummary
                   <p className="shop-card-description">{product.shortDescription}</p>
 
                   <div className="shop-card-meta">
-                    <span>{reviewSummary.reviewCount ? `${reviewSummary.rating.toFixed(1)} / 5` : "New arrival"}</span>
-                    <span>{reviewSummary.reviewCount} reviews</span>
+                    {reviewSummary.reviewCount ? (
+                      <RatingStars rating={reviewSummary.rating} reviewCount={reviewSummary.reviewCount} size="sm" />
+                    ) : (
+                      <span>New arrival</span>
+                    )}
+                    <span>{product.stock > 0 ? "Ready to ship" : "Back soon"}</span>
                     <span>{discountPercent}% off</span>
                   </div>
 
@@ -163,10 +177,16 @@ export function StorefrontClient({ products, categories, settings, reviewSummary
                   </Link>
                   <AddToCartButton productId={product.id} checkoutHref={`/checkout?product=${product.id}`} compact />
                 </div>
-              </article>
+              </StaggerItem>
             );
-          })}
-        </div>
+            })}
+          </StaggerList>
+        ) : (
+          <div className="shop-empty-state">
+            <h3>No products match this filter yet.</h3>
+            <p>Try a broader search or switch categories to see more wellness essentials.</p>
+          </div>
+        )}
       </section>
     </div>
   );

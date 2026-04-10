@@ -15,6 +15,10 @@ export async function POST(request: Request) {
       productId?: string;
       rating?: number;
       comment?: string;
+      media?: {
+        kind?: "image" | "video";
+        url?: string;
+      }[];
     };
 
     if (!payload.productId || !payload.comment || !payload.rating) {
@@ -25,7 +29,13 @@ export async function POST(request: Request) {
       productId: payload.productId,
       author: user.name || user.email,
       rating: payload.rating,
-      comment: payload.comment
+      comment: payload.comment,
+      media: Array.isArray(payload.media)
+        ? payload.media.map((item) => ({
+            kind: item.kind === "video" ? "video" : "image",
+            url: typeof item.url === "string" ? item.url : ""
+          }))
+        : []
     });
 
     const snapshot = await loadCommerceSnapshot();

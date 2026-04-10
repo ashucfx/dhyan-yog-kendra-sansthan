@@ -233,25 +233,30 @@ export function AccountClient({
           <div>
             <p className="eyebrow">Profile</p>
             <h2>Personal details</h2>
+            <p className="account-section-copy">Keep your contact details current so order updates and checkout stay frictionless.</p>
           </div>
-          <button className="button button-secondary button-small" type="button" disabled={busy === "signout"} onClick={handleSignOut}>
+          <button className="button button-secondary button-small account-card-head-action" type="button" disabled={busy === "signout"} onClick={handleSignOut}>
             {busy === "signout" ? "Signing out..." : "Sign Out"}
           </button>
         </div>
 
-        <div className="account-form-grid">
-          <div className="account-field">
+        <div className="account-form-grid account-form-grid-profile">
+          <label className="account-field">
+            <span className="account-field-label">Full name</span>
             <input value={profile.fullName} placeholder="Full name" onChange={(event) => setProfile((current) => ({ ...current, fullName: event.target.value }))} />
             {profileErrors.fullName ? <p className="account-field-error">{profileErrors.fullName}</p> : null}
-          </div>
-          <div className="account-field">
-            <input value={profile.email} disabled placeholder="Email" />
-            {profileErrors.email ? <p className="account-field-error">{profileErrors.email}</p> : null}
-          </div>
-          <div className="account-field">
+          </label>
+          <label className="account-field">
+            <span className="account-field-label">Mobile number</span>
             <input value={profile.phone} placeholder="Phone number" onChange={(event) => setProfile((current) => ({ ...current, phone: event.target.value }))} />
             {profileErrors.phone ? <p className="account-field-error">{profileErrors.phone}</p> : null}
-          </div>
+          </label>
+          <label className="account-field account-field-span-2">
+            <span className="account-field-label">Email address</span>
+            <input value={profile.email} disabled placeholder="Email" />
+            <p className="account-field-hint">Used for sign-in, confirmations, and order updates.</p>
+            {profileErrors.email ? <p className="account-field-error">{profileErrors.email}</p> : null}
+          </label>
         </div>
         <div className="account-actions">
           <button className="button button-small" type="button" disabled={busy === "profile"} onClick={saveProfile}>
@@ -265,37 +270,46 @@ export function AccountClient({
           <div>
             <p className="eyebrow">Addresses</p>
             <h2>Saved delivery addresses</h2>
+            <p className="account-section-copy">Save a complete delivery profile once and reuse it during checkout.</p>
           </div>
         </div>
 
-        <div className="account-form-grid account-form-grid-wide">
-          <div className="account-field">
+        <div className="account-form-grid account-form-grid-address">
+          <label className="account-field">
+            <span className="account-field-label">Address label</span>
             <input placeholder="Label" value={addressForm.label} onChange={(event) => setAddressForm((current) => ({ ...current, label: event.target.value }))} />
-          </div>
-          <div className="account-field">
+          </label>
+          <label className="account-field">
+            <span className="account-field-label">Full name</span>
             <input placeholder="Full name" value={addressForm.fullName} onChange={(event) => setAddressForm((current) => ({ ...current, fullName: event.target.value }))} />
             {addressErrors.fullName ? <p className="account-field-error">{addressErrors.fullName}</p> : null}
-          </div>
-          <div className="account-field">
+          </label>
+          <label className="account-field">
+            <span className="account-field-label">Phone number</span>
             <input placeholder="Phone" value={addressForm.phone} onChange={(event) => setAddressForm((current) => ({ ...current, phone: event.target.value }))} />
             {addressErrors.phone ? <p className="account-field-error">{addressErrors.phone}</p> : null}
-          </div>
-          <div className="account-field">
+          </label>
+          <label className="account-field account-field-span-2">
+            <span className="account-field-label">Address line</span>
             <input placeholder="Address line" value={addressForm.line1} onChange={(event) => setAddressForm((current) => ({ ...current, line1: event.target.value }))} />
             {addressErrors.line1 ? <p className="account-field-error">{addressErrors.line1}</p> : null}
-          </div>
-          <div className="account-field">
+          </label>
+          <label className="account-field">
+            <span className="account-field-label">Landmark</span>
             <input placeholder="Landmark (optional)" value={addressForm.landmark} onChange={(event) => setAddressForm((current) => ({ ...current, landmark: event.target.value }))} />
-          </div>
-          <div className="account-field">
+          </label>
+          <label className="account-field">
+            <span className="account-field-label">City</span>
             <input placeholder="City" value={addressForm.city} onChange={(event) => setAddressForm((current) => ({ ...current, city: event.target.value }))} />
             {addressErrors.city ? <p className="account-field-error">{addressErrors.city}</p> : null}
-          </div>
-          <div className="account-field">
+          </label>
+          <label className="account-field">
+            <span className="account-field-label">State</span>
             <input placeholder="State" value={addressForm.state} onChange={(event) => setAddressForm((current) => ({ ...current, state: event.target.value }))} />
             {addressErrors.state ? <p className="account-field-error">{addressErrors.state}</p> : null}
-          </div>
-          <div className="account-field">
+          </label>
+          <label className="account-field">
+            <span className="account-field-label">Postal code</span>
             <input
               placeholder="Postal code"
               value={addressForm.postalCode}
@@ -304,11 +318,12 @@ export function AccountClient({
               }
             />
             {addressErrors.postalCode ? <p className="account-field-error">{addressErrors.postalCode}</p> : null}
-          </div>
-          <div className="account-field">
+          </label>
+          <label className="account-field">
+            <span className="account-field-label">Country</span>
             <input placeholder="Country" value={addressForm.country} onChange={(event) => setAddressForm((current) => ({ ...current, country: event.target.value }))} />
             {addressErrors.country ? <p className="account-field-error">{addressErrors.country}</p> : null}
-          </div>
+          </label>
         </div>
         <div className="account-actions">
           <button className="button button-small" type="button" disabled={busy === "address"} onClick={saveAddress}>

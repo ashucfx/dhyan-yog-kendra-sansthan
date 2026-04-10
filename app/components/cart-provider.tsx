@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 
@@ -119,7 +119,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [authenticated, setAuthenticated] = useState(false);
 
-  async function refreshCart() {
+  const refreshCart = useCallback(async () => {
     setLoading(true);
 
     try {
@@ -144,11 +144,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
     void refreshCart();
-  }, []);
+  }, [refreshCart]);
 
   useEffect(() => {
     let active = true;
@@ -180,7 +180,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       active = false;
       subscription?.unsubscribe();
     };
-  }, []);
+  }, [refreshCart]);
 
   useEffect(() => {
     if (!authenticated || loading) {
@@ -210,7 +210,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     };
 
     void syncGuestCart();
-  }, [authenticated, loading]);
+  }, [authenticated, loading, refreshCart]);
 
   const value = useMemo<CartContextValue>(
     () => ({
@@ -313,7 +313,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       },
       refreshCart
     }),
-    [authenticated, items, loading]
+    [authenticated, items, loading, refreshCart]
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
