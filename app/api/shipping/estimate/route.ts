@@ -1,4 +1,4 @@
-import { estimateShippingForPostalCode } from "@/lib/commerce-pricing";
+import { getCommerceShippingEstimate } from "@/lib/commerce-shipping";
 
 export async function POST(request: Request) {
   try {
@@ -23,7 +23,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const estimate = estimateShippingForPostalCode(postalCode, subtotal);
+    const estimate = await getCommerceShippingEstimate({
+      postalCode,
+      subtotal
+    });
 
     if (!estimate.valid || !estimate.serviceable) {
       return Response.json(estimate, { status: 400 });

@@ -71,8 +71,16 @@ create table if not exists public.product_reviews (
   author text not null,
   rating integer not null check (rating between 1 and 5),
   comment text not null,
+  media jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now()
 );
+
+alter table public.product_reviews
+add column if not exists media jsonb not null default '[]'::jsonb;
+
+insert into storage.buckets (id, name, public)
+values ('review-media', 'review-media', true)
+on conflict (id) do nothing;
 
 create table if not exists public.offers (
   id uuid primary key default gen_random_uuid(),
@@ -204,6 +212,13 @@ create unique index if not exists payment_records_provider_payment_id_idx on pub
 create index if not exists shipments_order_id_idx on public.shipments(order_id);
 create index if not exists product_reviews_product_id_idx on public.product_reviews(product_id);
 
+-- Shipping metadata snapshot stored per order (provider, zone, ETA, live flag)
+alter table public.orders add column if not exists shipping_meta jsonb not null default '{}'::jsonb;
+
+-- Coupon enhancements: max cap on percent discounts, per-user redemption limit
+alter table public.coupons add column if not exists max_discount_amount integer;
+alter table public.coupons add column if not exists per_user_limit integer;
+
 alter table public.profiles enable row level security;
 alter table public.addresses enable row level security;
 alter table public.categories enable row level security;
@@ -333,7 +348,8 @@ create or replace function public.create_order_with_payment(
   p_shipping_address jsonb,
   p_items jsonb,
   p_payment_reference text default null,
-  p_currency_code text default 'INR'
+  p_currency_code text default 'INR',
+  p_shipping_meta jsonb default '{}'::jsonb
 )
 returns jsonb
 language plpgsql
@@ -346,12 +362,12 @@ declare
 begin
   insert into public.orders (
     id, user_id, customer_name, customer_email, customer_phone, status, fulfillment_status, payment_provider,
-    payment_status, payment_reference, subtotal, discount, shipping, total, coupon_code, shipping_address
+    payment_status, payment_reference, subtotal, discount, shipping, total, coupon_code, shipping_address, shipping_meta
   )
   values (
     p_order_id, p_user_id, p_customer_name, p_customer_email, p_customer_phone, p_status, p_fulfillment_status,
     p_payment_provider, p_payment_status, p_payment_reference, p_subtotal, p_discount, p_shipping, p_total,
-    p_coupon_code, coalesce(p_shipping_address, '{}'::jsonb)
+    p_coupon_code, coalesce(p_shipping_address, '{}'::jsonb), coalesce(p_shipping_meta, '{}'::jsonb)
   );
 
   for v_item in select * from jsonb_array_elements(coalesce(p_items, '[]'::jsonb))
