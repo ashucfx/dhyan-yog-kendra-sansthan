@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { startTransition, useMemo, useState } from "react";
+import { startTransition, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { CommerceCustomerSummary, CommerceSnapshot, CouponInput, OfferInput, ProductInput } from "@/lib/commerce";
 
@@ -51,6 +51,8 @@ const emptyCoupon: CouponInput = {
   minimumOrderAmount: 999,
   usageLimit: null,
   usageCount: 0,
+  maxDiscountAmount: null,
+  perUserLimit: null,
   active: true,
   startsAt: "",
   endsAt: ""
@@ -74,6 +76,7 @@ async function postJson<T>(url: string, payload: unknown) {
 
 export function CommerceDashboardClient({ initialSnapshot, initialCustomers }: CommerceDashboardClientProps) {
   const router = useRouter();
+  const productFormRef = useRef<HTMLElement>(null);
   const [snapshot, setSnapshot] = useState(initialSnapshot);
   const [toast, setToast] = useState<ToastState>(null);
   const [productForm, setProductForm] = useState<ProductInput>(emptyProduct);
@@ -111,6 +114,9 @@ export function CommerceDashboardClient({ initialSnapshot, initialCustomers }: C
       videoUrl: product.videoUrl ?? "",
       benefits: product.benefits
     });
+    window.setTimeout(() => {
+      productFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 60);
   }
 
   const filteredProducts = useMemo(() => {
@@ -201,6 +207,35 @@ export function CommerceDashboardClient({ initialSnapshot, initialCustomers }: C
     }
   }
 
+  async function handleGalleryUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    setBusyAction("product-gallery-upload");
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const response = await fetch("/api/admin/commerce/products/upload", {
+        method: "POST",
+        body: formData
+      });
+      const result = await response.json() as { url?: string; message?: string };
+      if (!response.ok) throw new Error(result.message || "Upload failed.");
+      const url = result.url as string;
+      setProductForm((current) => ({
+        ...current,
+        gallery: current.gallery.includes(url) ? current.gallery : [...current.gallery, url]
+      }));
+      notify("success", "Gallery image added.");
+    } catch (error) {
+      notify("error", error instanceof Error ? error.message : "Unable to upload gallery image.");
+    } finally {
+      setBusyAction("");
+    }
+  }
+
   async function saveProduct() {
     setBusyAction("product-save");
     try {
@@ -225,7 +260,8 @@ export function CommerceDashboardClient({ initialSnapshot, initialCustomers }: C
     }
   }
 
-  async function removeProduct(id: string) {
+  async function removeProduct(id: string, name: string) {
+    if (!window.confirm(`Delete "${name}"? This cannot be undone.`)) return;
     setBusyAction(`product-delete-${id}`);
     try {
       const result = await postJson<{ message: string }>("/api/admin/commerce/products/delete", { id });
@@ -233,6 +269,7 @@ export function CommerceDashboardClient({ initialSnapshot, initialCustomers }: C
         ...current,
         products: current.products.filter((item) => item.id !== id)
       }));
+      if (productForm.id === id) setProductForm(emptyProduct);
       notify("success", result.message || "Product deleted.");
       startTransition(() => router.refresh());
     } catch (error) {
@@ -397,26 +434,38 @@ export function CommerceDashboardClient({ initialSnapshot, initialCustomers }: C
       </div>
 
       <div className="commerce-admin-panels">
-        <article className="commerce-panel">
+        <article className="commerce-panel" ref={productFormRef}>
           <div className="commerce-panel-heading">
             <div>
               <p className="admin-kicker">Products</p>
               <h2>Catalog manager</h2>
             </div>
           </div>
+
           <div className="admin-form-grid">
+            {productForm.id ? (
+              <div className="admin-editing-banner">
+                <span>Editing: {productForm.name || "Untitled"}</span>
+                <button className="button button-secondary button-small" type="button" onClick={() => setProductForm(emptyProduct)}>
+                  Cancel
+                </button>
+              </div>
+            ) : null}
+
+            <span className="admin-form-section">Identity</span>
             <input
-              placeholder="Product name"
+              className="admin-span-2"
+              placeholder="Product name *"
               value={productForm.name}
               onChange={(event) => setProductForm((current) => ({ ...current, name: event.target.value }))}
             />
             <input
-              placeholder="Slug"
+              placeholder="Slug (auto-generated if blank)"
               value={productForm.slug}
               onChange={(event) => setProductForm((current) => ({ ...current, slug: event.target.value }))}
             />
             <input
-              placeholder="SKU"
+              placeholder="SKU *"
               value={productForm.sku}
               onChange={(event) => setProductForm((current) => ({ ...current, sku: event.target.value }))}
             />
@@ -431,21 +480,23 @@ export function CommerceDashboardClient({ initialSnapshot, initialCustomers }: C
               ))}
             </select>
             <input
-              placeholder="Badge"
+              placeholder="Badge label"
               value={productForm.badge}
               onChange={(event) => setProductForm((current) => ({ ...current, badge: event.target.value }))}
             />
+
+            <span className="admin-form-section">Main image</span>
             <input
-              placeholder="Image path"
+              placeholder="Image URL or path *"
               value={productForm.image}
               onChange={(event) => setProductForm((current) => ({ ...current, image: event.target.value }))}
             />
             <div className="admin-upload-field">
               <label className="admin-upload-button">
-                {busyAction === "product-image-upload" ? "Uploading..." : "Upload New Image"}
+                {busyAction === "product-image-upload" ? "Uploading..." : "Upload main image"}
                 <input
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/webp,image/avif"
                   onChange={handleImageUpload}
                   disabled={busyAction === "product-image-upload"}
                   hidden
@@ -453,50 +504,96 @@ export function CommerceDashboardClient({ initialSnapshot, initialCustomers }: C
               </label>
               {productForm.image ? (
                 <div className="admin-thumbnail">
-                  <Image src={productForm.image} alt="Preview" width={40} height={40} style={{ objectFit: "cover", borderRadius: "4px" }} />
+                  <Image src={productForm.image} alt="Main image preview" fill style={{ objectFit: "cover" }} sizes="60px" unoptimized />
                 </div>
               ) : null}
             </div>
+            {productForm.image ? (
+              <div className="admin-image-preview">
+                <Image src={productForm.image} alt="Preview" fill style={{ objectFit: "cover" }} sizes="600px" unoptimized />
+              </div>
+            ) : null}
+
+            <span className="admin-form-section">Gallery</span>
+            <div className="admin-upload-field">
+              <label className="admin-upload-button">
+                {busyAction === "product-gallery-upload" ? "Uploading..." : "Add gallery image"}
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/avif"
+                  onChange={handleGalleryUpload}
+                  disabled={busyAction === "product-gallery-upload"}
+                  hidden
+                />
+              </label>
+              <span className="admin-copy" style={{ fontSize: "0.82rem" }}>
+                {productForm.gallery.length} image{productForm.gallery.length !== 1 ? "s" : ""}
+              </span>
+            </div>
+            {productForm.gallery.length > 0 ? (
+              <div className="admin-gallery-grid">
+                {productForm.gallery.map((url) => (
+                  <div className="admin-gallery-item" key={url}>
+                    <Image src={url} alt="Gallery" fill style={{ objectFit: "cover" }} sizes="90px" unoptimized />
+                    <button
+                      className="admin-gallery-remove"
+                      type="button"
+                      title="Remove from gallery"
+                      onClick={() =>
+                        setProductForm((current) => ({
+                          ...current,
+                          gallery: current.gallery.filter((item) => item !== url),
+                          image: current.image === url && current.gallery.length > 1
+                            ? (current.gallery.find((item) => item !== url) ?? current.image)
+                            : current.image
+                        }))
+                      }
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
+            <span className="admin-form-section">Pricing &amp; inventory</span>
             <input
-              placeholder="Gallery image paths comma separated"
-              value={productForm.gallery.join(", ")}
-              onChange={(event) =>
-                setProductForm((current) => ({
-                  ...current,
-                  gallery: event.target.value.split(",").map((item) => item.trim()).filter(Boolean)
-                }))
-              }
-            />
-            <input
-              placeholder="Base price"
+              placeholder="Base price *"
               type="number"
+              min={0}
               value={productForm.basePrice}
               onChange={(event) => setProductForm((current) => ({ ...current, basePrice: Number(event.target.value) }))}
             />
             <input
-              placeholder="Sale price"
+              placeholder="Sale price *"
               type="number"
+              min={0}
               value={productForm.salePrice}
               onChange={(event) => setProductForm((current) => ({ ...current, salePrice: Number(event.target.value) }))}
             />
             <input
-              placeholder="Stock"
+              placeholder="Stock quantity"
               type="number"
+              min={0}
               value={productForm.stock}
               onChange={(event) => setProductForm((current) => ({ ...current, stock: Number(event.target.value) }))}
             />
             <input
-              placeholder="Video URL"
+              placeholder="Video embed URL (YouTube /embed/...)"
               value={productForm.videoUrl}
               onChange={(event) => setProductForm((current) => ({ ...current, videoUrl: event.target.value }))}
             />
+
+            <span className="admin-form-section">Content</span>
             <input
-              placeholder="Short description"
+              className="admin-span-2"
+              placeholder="Short description *"
               value={productForm.shortDescription}
               onChange={(event) => setProductForm((current) => ({ ...current, shortDescription: event.target.value }))}
             />
             <input
-              placeholder="Benefits comma separated"
+              className="admin-span-2"
+              placeholder="Benefits — comma separated (e.g. Reduces stress, Improves sleep)"
               value={productForm.benefits.join(", ")}
               onChange={(event) =>
                 setProductForm((current) => ({
@@ -505,13 +602,20 @@ export function CommerceDashboardClient({ initialSnapshot, initialCustomers }: C
                 }))
               }
             />
+            <textarea
+              placeholder="Full description *"
+              value={productForm.description}
+              onChange={(event) => setProductForm((current) => ({ ...current, description: event.target.value }))}
+            />
+
+            <span className="admin-form-section">Visibility</span>
             <label className="admin-checkbox">
               <input
                 type="checkbox"
                 checked={productForm.featured}
                 onChange={(event) => setProductForm((current) => ({ ...current, featured: event.target.checked }))}
               />
-              Featured
+              Featured on store
             </label>
             <label className="admin-checkbox">
               <input
@@ -521,20 +625,23 @@ export function CommerceDashboardClient({ initialSnapshot, initialCustomers }: C
               />
               Visible on store
             </label>
-            <textarea
-              placeholder="Description"
-              value={productForm.description}
-              onChange={(event) => setProductForm((current) => ({ ...current, description: event.target.value }))}
-            />
           </div>
+
           <div className="admin-actions">
             <button className="button button-small" type="button" disabled={busyAction === "product-save"} onClick={saveProduct}>
               {busyAction === "product-save" ? "Saving..." : productForm.id ? "Update Product" : "Add Product"}
             </button>
-            <button className="button button-secondary button-small" type="button" onClick={() => setProductForm(emptyProduct)}>
-              Reset
-            </button>
+            {productForm.id ? (
+              <button className="button button-secondary button-small" type="button" onClick={() => setProductForm(emptyProduct)}>
+                Cancel edit
+              </button>
+            ) : (
+              <button className="button button-secondary button-small" type="button" onClick={() => setProductForm(emptyProduct)}>
+                Reset
+              </button>
+            )}
           </div>
+
           <div className="admin-form-grid admin-form-grid-compact">
             <input placeholder="Search products" value={productQuery} onChange={(event) => setProductQuery(event.target.value)} />
             <select value={productFilter} onChange={(event) => setProductFilter(event.target.value as typeof productFilter)}>
@@ -544,16 +651,24 @@ export function CommerceDashboardClient({ initialSnapshot, initialCustomers }: C
               <option value="featured">Featured</option>
             </select>
           </div>
+
           <div className="commerce-list">
-            {filteredProducts.map((product) => (
+            {filteredProducts.length ? filteredProducts.map((product) => (
               <div className="commerce-list-item" key={product.id}>
-                <div>
+                <div className="admin-list-thumb">
+                  <Image src={product.image} alt={product.name} fill style={{ objectFit: "cover" }} sizes="45px" unoptimized />
+                </div>
+                <div style={{ flex: "1 1 0", minWidth: 0 }}>
                   <strong>{product.name}</strong>
                   <p>
-                    {product.sku} | Stock {product.stock} | {product.active ? "Visible" : "Hidden"}
+                    {product.sku} &nbsp;·&nbsp; Stock {product.stock} &nbsp;·&nbsp; Rs.{product.salePrice}
                   </p>
                 </div>
                 <div className="commerce-list-side">
+                  <span className={`status-pill status-${product.active ? "success" : "neutral"}`}>
+                    {product.active ? "Live" : "Hidden"}
+                  </span>
+                  {product.featured ? <span className="status-pill status-warning">Featured</span> : null}
                   <button className="button button-secondary button-small" type="button" onClick={() => loadProductIntoForm(product)}>
                     Edit
                   </button>
@@ -561,13 +676,15 @@ export function CommerceDashboardClient({ initialSnapshot, initialCustomers }: C
                     className="button button-secondary button-small"
                     type="button"
                     disabled={busyAction === `product-delete-${product.id}`}
-                    onClick={() => removeProduct(product.id)}
+                    onClick={() => removeProduct(product.id, product.name)}
                   >
-                    Delete
+                    {busyAction === `product-delete-${product.id}` ? "Deleting..." : "Delete"}
                   </button>
                 </div>
               </div>
-            ))}
+            )) : (
+              <p className="admin-copy">No products match the current filter.</p>
+            )}
           </div>
         </article>
 
@@ -669,6 +786,28 @@ export function CommerceDashboardClient({ initialSnapshot, initialCustomers }: C
               }
             />
             <input
+              type="number"
+              placeholder="Max discount amount (percent cap)"
+              value={couponForm.maxDiscountAmount ?? ""}
+              onChange={(event) =>
+                setCouponForm((current) => ({
+                  ...current,
+                  maxDiscountAmount: event.target.value ? Number(event.target.value) : null
+                }))
+              }
+            />
+            <input
+              type="number"
+              placeholder="Per-user limit"
+              value={couponForm.perUserLimit ?? ""}
+              onChange={(event) =>
+                setCouponForm((current) => ({
+                  ...current,
+                  perUserLimit: event.target.value ? Number(event.target.value) : null
+                }))
+              }
+            />
+            <input
               type="datetime-local"
               value={couponForm.startsAt ? couponForm.startsAt.slice(0, 16) : ""}
               onChange={(event) => setCouponForm((current) => ({ ...current, startsAt: event.target.value }))}
@@ -704,6 +843,8 @@ export function CommerceDashboardClient({ initialSnapshot, initialCustomers }: C
                   <p>
                     {coupon.description} | Used {coupon.usageCount}
                     {coupon.usageLimit !== null ? ` / ${coupon.usageLimit}` : ""}
+                    {coupon.maxDiscountAmount ? ` | Cap Rs.\u00a0${coupon.maxDiscountAmount}` : ""}
+                    {coupon.perUserLimit ? ` | ${coupon.perUserLimit}/user` : ""}
                   </p>
                 </div>
                 <div className="commerce-list-side">

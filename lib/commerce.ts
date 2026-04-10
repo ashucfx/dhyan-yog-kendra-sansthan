@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { calculateShippingCharge, estimateShippingForPostalCode, validateCouponForSubtotal } from "@/lib/commerce-pricing";
+import { estimateShippingForPostalCode, validateCouponForSubtotal } from "@/lib/commerce-pricing";
+import { getCommerceShippingEstimate, isShadowfaxQuoteConfigured } from "@/lib/commerce-shipping";
 import { normalizeEmail, normalizeIndianMobile, validateEmail, validateIndianMobile } from "@/lib/customer-validation";
 import { getSupabaseServiceClient } from "@/lib/supabase/service";
 
@@ -57,6 +58,10 @@ export type CommerceProductReview = {
   author: string;
   rating: number;
   comment: string;
+  media?: {
+    kind: "image" | "video";
+    url: string;
+  }[];
   createdAt: string;
 };
 
@@ -79,6 +84,8 @@ export type CommerceCoupon = {
   minimumOrderAmount: number;
   usageLimit: number | null;
   usageCount: number;
+  maxDiscountAmount?: number | null;
+  perUserLimit?: number | null;
   active: boolean;
   startsAt?: string;
   endsAt?: string;
@@ -97,6 +104,12 @@ export type CommerceOrder = {
   subtotal: number;
   discount: number;
   shipping: number;
+  shippingMeta?: {
+    provider: "shadowfax" | "standard";
+    zone?: string;
+    etaLabel?: string;
+    live: boolean;
+  };
   total: number;
   couponCode?: string;
   paymentReference?: string;
@@ -216,6 +229,8 @@ export type CouponInput = {
   minimumOrderAmount: number;
   usageLimit?: number | null;
   usageCount?: number;
+  maxDiscountAmount?: number | null;
+  perUserLimit?: number | null;
   active: boolean;
   startsAt?: string;
   endsAt?: string;
@@ -335,7 +350,7 @@ async function readSupabaseSnapshot(): Promise<CommerceSnapshot | null> {
         supabase.from("offers").select("id, title, description, kind, discount_type, discount_value, active").order("title"),
         supabase
           .from("coupons")
-          .select("id, code, description, discount_type, discount_value, minimum_order_amount, usage_limit, usage_count, active, starts_at, ends_at")
+          .select("id, code, description, discount_type, discount_value, minimum_order_amount, usage_limit, usage_count, max_discount_amount, per_user_limit, active, starts_at, ends_at")
           .order("code"),
         supabase
           .from("orders")
@@ -349,7 +364,7 @@ async function readSupabaseSnapshot(): Promise<CommerceSnapshot | null> {
           .select("id, order_id, product_id, product_name, sku, quantity, unit_price, total_price")
           .limit(5000),
         supabase.from("shipments").select("id, order_id, partner, awb, status, tracking_url").order("id", { ascending: false }).limit(12),
-        supabase.from("product_reviews").select("id, product_id, author, rating, comment, created_at").order("created_at", { ascending: false }).limit(250)
+        supabase.from("product_reviews").select("*").order("created_at", { ascending: false }).limit(250)
       ]);
 
     const results = [settingsResult, categoriesResult, productsResult, offersResult, couponsResult, ordersResult, orderItemsResult, shipmentsResult, productReviewsResult];
@@ -387,6 +402,11 @@ async function readSupabaseSnapshot(): Promise<CommerceSnapshot | null> {
             }
           ],
           shippingPartners: [
+            {
+              name: "Shadowfax",
+              status: (isShadowfaxQuoteConfigured() ? "active" : "planned") as PaymentProviderStatus,
+              coverage: "India live checkout quotes"
+            },
             {
               name: "Shiprocket",
               status: (process.env.SHIPROCKET_EMAIL ? "active" : "planned") as PaymentProviderStatus,
@@ -438,6 +458,8 @@ async function readSupabaseSnapshot(): Promise<CommerceSnapshot | null> {
       minimum_order_amount: number;
       usage_limit?: number | null;
       usage_count?: number | null;
+      max_discount_amount?: number | null;
+      per_user_limit?: number | null;
       active: boolean;
       starts_at?: string | null;
       ends_at?: string | null;
@@ -485,6 +507,7 @@ async function readSupabaseSnapshot(): Promise<CommerceSnapshot | null> {
       author: string;
       rating: number;
       comment: string;
+      media?: unknown;
       created_at: string;
     }>;
 
@@ -533,6 +556,8 @@ async function readSupabaseSnapshot(): Promise<CommerceSnapshot | null> {
         minimumOrderAmount: item.minimum_order_amount,
         usageLimit: item.usage_limit ?? null,
         usageCount: item.usage_count ?? 0,
+        maxDiscountAmount: item.max_discount_amount ?? null,
+        perUserLimit: item.per_user_limit ?? null,
         active: item.active,
         startsAt: item.starts_at ?? undefined,
         endsAt: item.ends_at ?? undefined
@@ -592,6 +617,7 @@ async function readSupabaseSnapshot(): Promise<CommerceSnapshot | null> {
         author: item.author,
         rating: item.rating,
         comment: item.comment,
+        media: ensureReviewMedia(item.media),
         createdAt: item.created_at
       })),
       source: "supabase"
@@ -642,6 +668,58 @@ function ensureBenefits(value: string[]) {
 
 function ensureGallery(value: string[]) {
   return value.map((item) => item.trim()).filter(Boolean);
+}
+
+function sanitizeReviewMediaUrl(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  if (trimmed.startsWith("/")) {
+    return trimmed;
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== "https:") {
+      return "";
+    }
+    return parsed.toString();
+  } catch {
+    return "";
+  }
+}
+
+function ensureReviewMedia(
+  value: unknown
+): {
+  kind: "image" | "video";
+  url: string;
+}[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((item) => {
+      if (!item || typeof item !== "object") {
+        return null;
+      }
+
+      const kind = "kind" in item && item.kind === "video" ? "video" : "image";
+      const url = "url" in item && typeof item.url === "string" ? sanitizeReviewMediaUrl(item.url) : "";
+      if (!url) {
+        return null;
+      }
+
+      return {
+        kind,
+        url
+      };
+    })
+    .filter((item): item is { kind: "image" | "video"; url: string } => Boolean(item))
+    .slice(0, 4);
 }
 
 function cloneLocalSnapshot(snapshot: CommerceSnapshot): Omit<CommerceSnapshot, "source"> {
@@ -814,6 +892,10 @@ export async function createProductReview(input: {
   author: string;
   rating: number;
   comment: string;
+  media?: {
+    kind: "image" | "video";
+    url: string;
+  }[];
 }) {
   const snapshot = await loadCommerceSnapshot();
   const product = snapshot.products.find((item) => item.id === input.productId && item.active);
@@ -831,6 +913,7 @@ export async function createProductReview(input: {
     author: sanitizeText(input.author),
     rating: Math.max(1, Math.min(5, Math.round(input.rating))),
     comment: sanitizeText(input.comment),
+    media: ensureReviewMedia(input.media),
     createdAt: new Date().toISOString()
   };
 
@@ -842,6 +925,7 @@ export async function createProductReview(input: {
       author: review.author,
       rating: review.rating,
       comment: review.comment,
+      media: review.media ?? [],
       created_at: review.createdAt
     });
     if (error) {
@@ -969,6 +1053,12 @@ export async function upsertCoupon(input: CouponInput) {
     minimumOrderAmount: sanitizeCurrency(input.minimumOrderAmount),
     usageLimit: normalizeUsageLimit(input.usageLimit),
     usageCount: sanitizeCurrency(input.usageCount ?? 0),
+    maxDiscountAmount: input.maxDiscountAmount && input.maxDiscountAmount > 0
+      ? sanitizeCurrency(input.maxDiscountAmount)
+      : null,
+    perUserLimit: input.perUserLimit && input.perUserLimit > 0
+      ? Math.max(1, Math.round(input.perUserLimit))
+      : null,
     active: Boolean(input.active),
     startsAt,
     endsAt
@@ -985,6 +1075,8 @@ export async function upsertCoupon(input: CouponInput) {
       minimum_order_amount: payload.minimumOrderAmount,
       usage_limit: payload.usageLimit,
       usage_count: payload.usageCount,
+      max_discount_amount: payload.maxDiscountAmount ?? null,
+      per_user_limit: payload.perUserLimit ?? null,
       active: payload.active,
       starts_at: payload.startsAt ?? null,
       ends_at: payload.endsAt ?? null
@@ -1090,12 +1182,22 @@ export async function createCommerceOrder(input: CreateOrderInput) {
   }
 
   const discount = couponCheck.discount;
-  const shippingEstimate = estimateShippingForPostalCode(input.shippingAddress.postalCode, subtotal - discount);
+  const shippingEstimate = await getCommerceShippingEstimate({
+    postalCode: input.shippingAddress.postalCode,
+    subtotal: subtotal - discount,
+    itemCount: matchedItems.reduce((sum, item) => sum + item.quantity, 0)
+  });
   if (!shippingEstimate.valid || !shippingEstimate.serviceable) {
     throw new Error(shippingEstimate.message);
   }
 
-  const shipping = calculateShippingCharge(subtotal - discount, input.shippingAddress.postalCode);
+  const shipping = shippingEstimate.shippingCharge;
+  const shippingMeta = {
+    provider: shippingEstimate.provider,
+    zone: shippingEstimate.zone,
+    etaLabel: shippingEstimate.etaLabel,
+    live: shippingEstimate.live
+  };
   const total = Math.max(0, subtotal - discount + shipping);
   const orderId = buildOrderId();
   const createdAt = new Date().toISOString();
@@ -1113,6 +1215,7 @@ export async function createCommerceOrder(input: CreateOrderInput) {
     subtotal,
     discount,
     shipping,
+    shippingMeta,
     total,
     couponCode: coupon?.code ?? undefined,
     paymentReference: undefined,
@@ -1149,6 +1252,7 @@ export async function createCommerceOrder(input: CreateOrderInput) {
       p_total: order.total,
       p_coupon_code: coupon?.code ?? null,
       p_shipping_address: input.shippingAddress,
+      p_shipping_meta: shippingMeta,
       p_items: orderItems.map((item) => ({
         id: item.id,
         order_id: item.orderId,

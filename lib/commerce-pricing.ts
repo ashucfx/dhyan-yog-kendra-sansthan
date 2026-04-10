@@ -17,8 +17,6 @@ export type ShippingEstimate = {
   message: string;
 };
 
-const storeOriginPostalCode = "127021";
-
 export function isValidIndianPostalCode(postalCode: string) {
   return /^[1-9]\d{5}$/.test(postalCode.trim());
 }
@@ -104,10 +102,7 @@ export function estimateShippingForPostalCode(postalCode: string, subtotal: numb
     zone: zone.key,
     etaLabel: zone.etaLabel,
     shippingCharge,
-    message:
-      normalizedPostalCode === storeOriginPostalCode
-        ? `Delivery is available from our ${storeOriginPostalCode} dispatch location.`
-        : `Delivery is available to ${normalizedPostalCode}.`
+    message: `Delivery is available for ${normalizedPostalCode}.`
   };
 }
 
@@ -117,54 +112,29 @@ export function validateCouponForSubtotal(
   now = new Date()
 ): CouponValidationResult {
   if (!coupon) {
-    return {
-      valid: false,
-      reason: "Coupon was not found.",
-      coupon: null,
-      discount: 0
-    };
+    return { valid: false, reason: "Coupon was not found.", coupon: null, discount: 0 };
   }
 
   if (!coupon.active) {
-    return {
-      valid: false,
-      reason: "This coupon is inactive.",
-      coupon,
-      discount: 0
-    };
+    return { valid: false, reason: "This coupon is inactive.", coupon, discount: 0 };
   }
 
   if (coupon.startsAt && new Date(coupon.startsAt) > now) {
-    return {
-      valid: false,
-      reason: "This coupon is not active yet.",
-      coupon,
-      discount: 0
-    };
+    return { valid: false, reason: "This coupon is not active yet.", coupon, discount: 0 };
   }
 
   if (coupon.endsAt && new Date(coupon.endsAt) < now) {
-    return {
-      valid: false,
-      reason: "This coupon has expired.",
-      coupon,
-      discount: 0
-    };
+    return { valid: false, reason: "This coupon has expired.", coupon, discount: 0 };
   }
 
   if (coupon.usageLimit !== null && coupon.usageCount >= coupon.usageLimit) {
-    return {
-      valid: false,
-      reason: "This coupon has reached its usage limit.",
-      coupon,
-      discount: 0
-    };
+    return { valid: false, reason: "This coupon has reached its usage limit.", coupon, discount: 0 };
   }
 
   if (subtotal < coupon.minimumOrderAmount) {
     return {
       valid: false,
-      reason: `Minimum order amount is Rs. ${coupon.minimumOrderAmount}.`,
+      reason: `A minimum order of Rs.\u00a0${coupon.minimumOrderAmount} is required for this coupon.`,
       coupon,
       discount: 0
     };
@@ -174,11 +144,28 @@ export function validateCouponForSubtotal(
     coupon.discountType === "percent"
       ? Math.round((subtotal * coupon.discountValue) / 100)
       : coupon.discountValue;
-  const discount = Math.max(0, Math.min(subtotal, rawDiscount));
 
-  return {
-    valid: true,
-    coupon,
-    discount
-  };
+  // Cap percent discounts when the coupon has a maximum discount amount set
+  const cappedDiscount =
+    coupon.maxDiscountAmount && coupon.maxDiscountAmount > 0
+      ? Math.min(rawDiscount, coupon.maxDiscountAmount)
+      : rawDiscount;
+
+  const discount = Math.max(0, Math.min(subtotal, cappedDiscount));
+
+  return { valid: true, coupon, discount };
+}
+
+/**
+ * Returns a short human-readable label for a coupon's discount,
+ * e.g. "10% off" or "Rs. 100 off" or "10% off (up to Rs. 200)".
+ */
+export function describeCouponDiscount(coupon: Pick<CommerceCoupon, "discountType" | "discountValue" | "maxDiscountAmount">): string {
+  if (coupon.discountType === "percent") {
+    const base = `${coupon.discountValue}% off`;
+    return coupon.maxDiscountAmount && coupon.maxDiscountAmount > 0
+      ? `${base} (up to Rs.\u00a0${coupon.maxDiscountAmount})`
+      : base;
+  }
+  return `Rs.\u00a0${coupon.discountValue} off`;
 }
